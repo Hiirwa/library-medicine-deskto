@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #4f63e6;
+  --color-brand-600: #2d4bd8;
+  --color-brand-700: #2338b0;
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Roboto", sans-serif;
+}
+
+/* Library Medicine look: soft surfaces, shadows instead of borders */
+@utility card { border-radius: 1rem; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px -12px rgba(15,23,42,.18); }
+@utility btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: .75rem; padding: .5rem 1rem;
+  font-size: .875rem; font-weight: 600; transition: transform .15s, background-color .2s, box-shadow .2s, color .2s; cursor: pointer;
+  &:active:not(:disabled) { transform: scale(.97); }
+  &:disabled { cursor: not-allowed; opacity: .5; }
+}
+@utility btn-primary { @apply btn bg-brand-600 text-white shadow-[0_6px_16px_-8px_rgba(45,75,216,.8)] hover:bg-brand-700; }
+@utility btn-ghost { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
+@utility btn-danger { @apply btn bg-red-50 text-red-700 hover:bg-red-100; }
+@utility field {
+  @apply w-full rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-900 outline-none ring-brand-500/40 transition placeholder:text-slate-400 focus:bg-white focus:ring-4;
+}
+@utility label { @apply mb-1 block text-xs font-bold tracking-wide text-slate-500 uppercase; }
+@utility chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold; }
+
+html, body, #root { height: 100%; }
+body { user-select: none; }
+input, textarea, select, .selectable { user-select: text; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .35); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
