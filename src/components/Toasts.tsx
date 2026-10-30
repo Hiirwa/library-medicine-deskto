@@ -1,13 +1,14 @@
 import { useSession } from '../providers/AppProvider';
+import { Icon } from './ui';
 
 export function Toasts() {
-  const { toasts } = useSession();
+  const { toasts, dismissToast } = useSession();
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[360px] flex-col gap-2" aria-live="polite">
+    <div className="toasts" aria-live="polite">
       {toasts.map((t) => (
-        <div key={t.id} className={`card pointer-events-auto px-4 py-3 text-sm font-medium ${t.kind === 'error' ? 'text-red-700' : 'text-slate-800'}`}>
-          <span className={`mr-2 inline-block h-2 w-2 rounded-full align-middle ${t.kind === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`} />
-          {t.msg}
+        <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'error' ? 'alert' : 'status'} onClick={() => dismissToast(t.id)}>
+          <span className="t-ic"><Icon name={t.kind === 'error' ? 'exclamation-lg' : 'check-lg'} /></span>
+          <span className="flex-1 pt-0.5">{t.msg}</span>
         </div>
       ))}
     </div>

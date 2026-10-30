@@ -208,6 +208,34 @@ async fn remove_local(state: State<'_, AppState>, path: String) -> Result<(), St
     tokio::fs::remove_file(p).await.map_err(err)
 }
 
+/// Writes an export (CSV, codebook…) to the place the user picked in the Save dialog.
+/// Only plain-text export types are allowed, so this cannot be used to drop programs on the computer.
+#[tauri::command]
+async fn save_export(path: String, contents: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    let ext = p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).unwrap_or_default();
+    if !["csv", "tsv", "txt", "json", "md"].contains(&ext.as_str()) {
+        return Err("Exports can only be saved as .csv, .tsv, .txt, .json or .md files.".into());
+    }
+    tokio::fs::write(p, contents.as_bytes()).await.map_err(err)
+}
+
+/// Size of the workspace folder on disk (offline copies of attachments).
+#[tauri::command]
+fn workspace_size(state: State<'_, AppState>) -> u64 {
+    fn walk(p: &Path) -> u64 {
+        let Ok(rd) = std::fs::read_dir(p) else { return 0 };
+        rd.flatten()
+            .map(|e| match e.file_type() {
+                Ok(t) if t.is_dir() => walk(&e.path()),
+                Ok(_) => e.metadata().map(|m| m.len()).unwrap_or(0),
+                Err(_) => 0,
+            })
+            .sum()
+    }
+    walk(&state.workspace)
+}
+
 // ---------------------------------------------------------------------------------------------- secure storage
 
 fn entry(key: &str) -> Result<keyring::Entry, String> {
@@ -535,7 +563,9 @@ pub fn run() {
             check_network_now,
             api_request,
             download_attachment,
-            upload_attachment
+            upload_attachment,
+            save_export,
+            workspace_size
         ])
         .run(tauri::generate_context!())
         .expect("error while running the Library Medicine desktop app");

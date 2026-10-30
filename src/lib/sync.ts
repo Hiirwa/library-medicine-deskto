@@ -114,7 +114,7 @@ async function downloadFiles(onProgress: (p: SyncProgress) => void, sum: SyncSum
 }
 
 /** Runs one full sync. Concurrent calls share the same run. */
-export function syncNow(onProgress: (p: SyncProgress) => void = () => {}): Promise<SyncSummary> {
+export function syncNow(onProgress: (p: SyncProgress) => void = () => {}, opts: { downloadFiles?: boolean } = {}): Promise<SyncSummary> {
   if (running) return running;
   running = (async () => {
     const sum: SyncSummary = { pushed: 0, serverWins: 0, rejected: 0, pulled: 0, downloaded: 0, uploaded: 0, errors: [] };
@@ -167,7 +167,7 @@ export function syncNow(onProgress: (p: SyncProgress) => void = () => {}): Promi
         }
       } while (true);
 
-      await downloadFiles(onProgress, sum);
+      if (opts.downloadFiles !== false) await downloadFiles(onProgress, sum);
       if (checkpoint) await store.kvSet('last_sync', checkpoint);
       await store.kvSet('last_sync_ok', new Date().toISOString());
       const summary = `Sent ${sum.pushed}, received ${sum.pulled}, files ↑${sum.uploaded} ↓${sum.downloaded}` + (sum.serverWins ? `, ${sum.serverWins} newer on server` : '') + (sum.rejected ? `, ${sum.rejected} rejected` : '');

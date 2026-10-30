@@ -27,7 +27,20 @@ interface Session {
   signOut: (opts?: { keepData?: boolean }) => Promise<void>;
   toast: (msg: string, kind?: 'ok' | 'error') => void;
   toasts: { id: number; msg: string; kind: 'ok' | 'error' }[];
+  dismissToast: (id: number) => void;
+  settings: Settings;
+  setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => Promise<void>;
 }
+
+export interface Settings {
+  /** minutes between automatic syncs while online; 0 = off */
+  autoSyncMin: number;
+  /** sync as soon as the app starts (and when the connection comes back) */
+  syncOnStart: boolean;
+  /** download attachments for offline use during sync */
+  downloadFiles: boolean;
+}
+const DEFAULT_SETTINGS: Settings = { autoSyncMin: 5, syncOnStart: true, downloadFiles: true };
 
 const Ctx = createContext<Session | null>(null);
 export const useSession = () => {
@@ -37,7 +50,6 @@ export const useSession = () => {
 };
 
 const DEFAULT_SERVER = 'https://librarymedicine.online';
-const PERIODIC_MS = 5 * 60 * 1000;
 
 function Inner({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState<Stage>('loading');
@@ -50,6 +62,7 @@ function Inner({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Session['toasts']>([]);
   const net = useNetwork();
   const wasOnline = useRef<boolean | null>(null);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   const toast = useCallback((msg: string, kind: 'ok' | 'error' = 'ok') => {
     const id = Date.now() + Math.random();
@@ -65,6 +78,7 @@ function Inner({ children }: { children: ReactNode }) {
       setServer(await native.setServer(s).catch(() => DEFAULT_SERVER));
       const u = await store.kvGet('user');
       setLastSync(await store.kvGet('last_sync_ok'));
+      try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse((await store.kvGet('settings')) ?? '{}') }); } catch { /* defaults */ }
       if (!u) return setStage('login');
       setUser(JSON.parse(u) as Me);
       setStage((await native.hasToken().catch(() => false)) ? 'app' : 'token');
@@ -76,7 +90,7 @@ function Inner({ children }: { children: ReactNode }) {
     setSyncing(true);
     setProgress({ stage: 'pushing', message: 'Starting sync…' });
     try {
-      const summary = await syncNow(setProgress);
+      const summary = await syncNow(setProgress, { downloadFiles: settings.downloadFiles });
       setLastResult({ ok: summary.rejected === 0, summary });
       setLastSync(new Date().toISOString());
       if (!opts.quiet || summary.pushed || summary.pulled || summary.rejected) {
@@ -92,20 +106,29 @@ function Inner({ children }: { children: ReactNode }) {
       setProgress(null);
       await queryClient.invalidateQueries();
     }
-  }, [syncing, toast]);
+  }, [syncing, toast, settings.downloadFiles]);
 
   // back online → sync straight away; then every 5 minutes while online
   useEffect(() => {
     if (stage !== 'app') return;
-    if (net.online && wasOnline.current === false) sync({ quiet: true });
-    if (net.online && wasOnline.current === null) sync({ quiet: true });
+    if (net.online && wasOnline.current === false && settings.syncOnStart) sync({ quiet: true });
+    if (net.online && wasOnline.current === null && settings.syncOnStart) sync({ quiet: true });
     wasOnline.current = net.online;
-  }, [net.online, stage, sync]);
+  }, [net.online, stage, sync, settings.syncOnStart]);
   useEffect(() => {
-    if (stage !== 'app') return;
-    const t = setInterval(() => { if (net.online) sync({ quiet: true }); }, PERIODIC_MS);
+    if (stage !== 'app' || !settings.autoSyncMin) return;
+    const t = setInterval(() => { if (net.online) sync({ quiet: true }); }, settings.autoSyncMin * 60 * 1000);
     return () => clearInterval(t);
-  }, [net.online, stage, sync]);
+  }, [net.online, stage, sync, settings.autoSyncMin]);
+
+  const setSetting = useCallback(async <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    setSettings((cur) => {
+      const next = { ...cur, [key]: value };
+      store.kvSet('settings', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+  const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   const setLoggedIn = useCallback(async (srv: string, u: Me) => {
     await store.kvSet('server', srv);
@@ -119,15 +142,15 @@ function Inner({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async (opts: { keepData?: boolean } = {}) => {
     await native.secureDelete('api_token');
-    if (!opts.keepData) await store.wipe();
+    if (!opts.keepData) { await store.wipe(); await store.kvSet('settings', JSON.stringify(settings)); }
     else { await store.kvDel('user'); }
     setUser(null);
     setStage('login');
     await queryClient.invalidateQueries();
-  }, []);
+  }, [settings]);
 
-  const value = useMemo<Session>(() => ({ stage, server, user, online: net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts }),
-    [stage, server, user, net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts]);
+  const value = useMemo<Session>(() => ({ stage, server, user, online: net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting }),
+    [stage, server, user, net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

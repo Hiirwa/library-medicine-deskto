@@ -16,6 +16,7 @@
     "dialog:allow-open",
     "dialog:allow-ask",
     "dialog:allow-message",
+    "dialog:allow-save",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

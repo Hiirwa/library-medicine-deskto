@@ -9,6 +9,24 @@ An offline-first Windows app for **librarymedicine.online**. Researchers and dat
 
 ---
 
+## What's new in 1.1.0
+
+**Same design as librarymedicine.online.** The app now uses the website's design system (`brand.css`): Roboto Condensed, brand blue + clinical teal, borderless cards separated by shadows, the same sidebar with the logo, project card, section labels and user menu, the same breadcrumb top bar, page heads, stat tiles and data table. Light and dark themes follow the website (or Windows).
+
+**New features**
+- **My projects dashboard**, like the website home: greeting, quick actions, stat tiles (active projects, records, new this week, waiting to send), a 14-day records chart, project search, sort and filters.
+- **Project pages** in the sidebar: Overview (completeness, submissions chart, recent activity), Data, Variables, Forms and Files.
+- **Data table**: search all columns (`/`), choose columns, labels or codes, compact rows, status tiles (all, complete, drafts, flagged, to send, today), sorting and paging.
+- **Export** of the records on this computer to **CSV** (labels or codes) and the **codebook**, saved where you choose.
+- **Record editor** rebuilt as a drawer: section list with a step indicator, an answered-progress bar, *Duplicate* (new record with the same answers), **Ctrl+S** to save, personal-data and calculated-field markers, GPS fields can use this computer's location.
+- **Command palette** (**Ctrl+K**): jump to any project, page or record. Shortcuts: Ctrl+N new record, Ctrl+B hide the menu, Esc close.
+- **Sync centre**: what is waiting to be sent, files to upload or download, records refused by the server with the reason, and the sync history.
+- **Settings**: theme, automatic sync interval, sync on start, attachment downloads on/off, storage used on this computer, account and API-token actions.
+- **Help & documentation** page with offline steps and shortcuts.
+- Status bar on every page: last sync, waiting to send, files offline, auto-sync interval.
+
+---
+
 ## 1. What the app does
 
 | Screen | What happens |
@@ -49,12 +67,22 @@ library-medicine-desktop/
 │   │   ├── db.ts                         SQLite store: records, outbox, files, meta, settings
 │   │   ├── sync.ts                       the sync engine (push, merge, pull, files)
 │   │   └── time.ts                       UTC timestamps, ids, formatting
+│   ├── providers/UiProvider.tsx          navigation, theme, editor and palette state
+│   ├── lib/csv.ts, lib/format.ts         CSV/codebook export, value labels
 │   ├── views/
 │   │   ├── LoginView.tsx                 screen 1
 │   │   ├── TokenView.tsx                 screen 2
-│   │   └── DashboardView.tsx             screen 3
+│   │   ├── HomeView.tsx                  My projects dashboard
+│   │   ├── ProjectView.tsx               project overview
+│   │   ├── DataView.tsx                  data table, export
+│   │   ├── VariablesView.tsx, FormsFilesViews.tsx
+│   │   ├── SyncView.tsx                  sync centre
+│   │   ├── SettingsView.tsx, HelpView.tsx
 │   └── components/
-│       ├── RecordEditor.tsx              form-layout editor, drafts, delete, attachments
+│       ├── Shell.tsx                     sidebar, top bar, status bar (website layout)
+│       ├── ui.tsx                        page head, stat tiles, cards, charts, icons
+│       ├── CommandPalette.tsx            Ctrl+K search
+│       ├── RecordEditor.tsx              drawer editor with sections, progress, duplicate
 │       ├── FieldInput.tsx                one input per variable type
 │       ├── SyncOverlay.tsx               freezes input during sync, shows progress
 │       ├── Toasts.tsx, Brand.tsx

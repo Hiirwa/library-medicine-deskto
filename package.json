@@ -1,7 +1,7 @@
 {
   "name": "library-medicine-desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Library Medicine desktop app: offline-first data collection that syncs with librarymedicine.online",
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-dialog": "2.8.4",
     "@tauri-apps/plugin-opener": "2.7.2",
     "@tauri-apps/plugin-sql": "2.6.0",
+    "bootstrap-icons": "1.11.3",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Brand } from '../components/Brand';
+import { Icon } from '../components/ui';
 import { api, apiError, native } from '../lib/native';
 import { useSession } from '../providers/AppProvider';
 import type { Me } from '../lib/types';
@@ -41,34 +42,48 @@ export function LoginView() {
   }
 
   return (
-    <div className="grid h-full place-items-center bg-gradient-to-br from-brand-50 via-white to-teal-50 p-6">
-      <form onSubmit={submit} className="card w-full max-w-md p-8">
-        <Brand />
-        <h1 className="mt-6 text-2xl font-bold">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">Use the same account as on {new URL(server || 'https://librarymedicine.online').host}.</p>
-        {!online && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">You are offline. Signing in for the first time needs internet.</p>}
-        <label className="label mt-6" htmlFor="email">Email or username</label>
-        <input id="email" className="field" autoFocus autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <label className="label mt-4" htmlFor="password">Password</label>
-        <input id="password" type="password" className="field" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        {needOtp && (
-          <>
-            <label className="label mt-4" htmlFor="otp">Two-factor code</label>
-            <input id="otp" className="field tracking-[.3em]" inputMode="numeric" maxLength={8} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} autoFocus />
-          </>
-        )}
-        {advanced && (
-          <>
-            <label className="label mt-4" htmlFor="server">Server address</label>
-            <input id="server" className="field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://librarymedicine.online" />
-          </>
-        )}
-        {error && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">{error}</p>}
-        <button className="btn-primary mt-6 w-full py-3" disabled={busy || !email || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        <button type="button" className="mt-4 text-xs font-semibold text-slate-500 hover:text-brand-600" onClick={() => setAdvanced((a) => !a)}>
-          {advanced ? 'Hide server address' : 'Use another server address'}
-        </button>
-      </form>
+    <div className="auth-bg">
+      <div className="grid w-full max-w-5xl items-center gap-10" style={{ gridTemplateColumns: 'minmax(0,1fr) 28rem' }}>
+        <div className="anim-in">
+          <Brand />
+          <h1 className="mt-8 text-[2.6rem] leading-tight" style={{ background: 'var(--rh-head-grad)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Collect research data anywhere — even without internet.</h1>
+          <p className="muted mt-4 max-w-lg text-lg">The Library Medicine desktop app keeps your projects on this computer and syncs them with librarymedicine.online when you are back online.</p>
+          <div className="mt-7 grid max-w-lg gap-3">
+            {[['wifi-off', 'Works offline', 'Enter and edit records in the field, at the ward or on the road.'], ['arrow-repeat', 'Syncs automatically', 'Changes go up and come down by themselves when you are connected.'], ['shield-lock', 'Secure', 'Your token is kept in the Windows Credential Manager.']].map(([ic, t, d]) => (
+              <div key={t} className="card-flat flex items-center gap-3 px-4 py-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg" style={{ background: 'var(--rh-brand-soft)', color: 'var(--rh-brand)' }}><Icon name={ic} /></span>
+                <span><b className="ink block">{t}</b><span className="muted text-sm">{d}</span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <form onSubmit={submit} className="auth-card anim-in">
+          <h2 className="text-2xl grad-text">Sign in</h2>
+          <p className="muted mt-1">Use the same account as on {(() => { try { return new URL(server || 'https://librarymedicine.online').host; } catch { return 'the website'; } })()}.</p>
+          {!online && <div className="notice warn mt-4"><Icon name="wifi-off" /><span>You are offline. Signing in for the first time needs internet.</span></div>}
+          <label className="label mt-6" htmlFor="email">Email or username</label>
+          <div className="field-ic"><Icon name="person" /><input id="email" className="field" autoFocus autoComplete="username" placeholder="Dr@librarymedicine.com" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <label className="label mt-4" htmlFor="password">Password</label>
+          <div className="field-ic"><Icon name="lock" /><input id="password" type="password" className="field" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+          {needOtp && (
+            <>
+              <label className="label mt-4" htmlFor="otp">Two-factor code</label>
+              <div className="field-ic"><Icon name="shield-check" /><input id="otp" className="field tracking-[.3em]" inputMode="numeric" maxLength={8} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} autoFocus /></div>
+            </>
+          )}
+          {advanced && (
+            <>
+              <label className="label mt-4" htmlFor="server">Server address</label>
+              <div className="field-ic"><Icon name="globe2" /><input id="server" className="field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://librarymedicine.online" /></div>
+            </>
+          )}
+          {error && <div className="notice danger mt-4" role="alert"><Icon name="exclamation-octagon" /><span>{error}</span></div>}
+          <button className="btn btn-primary btn-lg mt-6 w-full" disabled={busy || !email || !password}>{busy ? <><Icon name="arrow-repeat" className="spin" />Signing in…</> : <><Icon name="box-arrow-in-right" />Sign in</>}</button>
+          <button type="button" className="btn btn-ghost btn-sm mt-3" onClick={() => setAdvanced((a) => !a)}>
+            <Icon name="hdd-network" />{advanced ? 'Hide server address' : 'Use another server address'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

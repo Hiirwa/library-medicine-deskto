@@ -83,7 +83,7 @@ const toRecord = (r: RecordRow): LocalRecord => ({ ...r, data: j<RecordData>(r.d
 export async function listRecords(project: string, search = ''): Promise<LocalRecord[]> {
   const like = `%${search.trim()}%`;
   const rows = await (await db()).select<RecordRow[]>(
-    `SELECT * FROM records WHERE project = $1 AND deleted_at IS NULL ${search.trim() ? 'AND (data LIKE $2 OR uuid LIKE $2)' : ''} ORDER BY updated_at DESC LIMIT 2000`,
+    `SELECT * FROM records WHERE project = $1 AND deleted_at IS NULL ${search.trim() ? 'AND (data LIKE $2 OR uuid LIKE $2)' : ''} ORDER BY updated_at DESC LIMIT 10000`,
     search.trim() ? [project, like] : [project],
   );
   return rows.map(toRecord);
@@ -217,14 +217,136 @@ export async function fileStats(): Promise<{ total: number; offline: number; wai
   return { total: r[0]?.total ?? 0, offline: r[0]?.offline ?? 0, waiting: r[0]?.waiting ?? 0 };
 }
 
+// ------------------------------------------------------------------ dashboards & statistics (all computed from the local copy)
+const isoDaysAgo = (n: number) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return d.toISOString(); };
+
+export interface ProjectStats { total: number; complete: number; draft: number; flagged: number; toSend: number; refused: number; today: number; week: number }
+export async function projectStats(project: string): Promise<ProjectStats> {
+  const r = await (await db()).select<Record<string, number | null>[]>(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) AS complete,
+            SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft,
+            SUM(CASE WHEN status = 'flagged' THEN 1 ELSE 0 END) AS flagged,
+            SUM(CASE WHEN dirty = 1 THEN 1 ELSE 0 END) AS toSend,
+            SUM(CASE WHEN sync_error IS NOT NULL THEN 1 ELSE 0 END) AS refused,
+            SUM(CASE WHEN created_at >= $2 THEN 1 ELSE 0 END) AS today,
+            SUM(CASE WHEN created_at >= $3 THEN 1 ELSE 0 END) AS week
+       FROM records WHERE project = $1 AND deleted_at IS NULL`,
+    [project, isoDaysAgo(0), isoDaysAgo(6)],
+  );
+  const x = r[0] ?? {};
+  const n = (k: string) => Number(x[k] ?? 0);
+  return { total: n('total'), complete: n('complete'), draft: n('draft'), flagged: n('flagged'), toSend: n('toSend'), refused: n('refused'), today: n('today'), week: n('week') };
+}
+
+export interface GlobalStats { projects: number; active: number; archived: number; records: number; week: number; prevWeek: number; toSend: number; refused: number }
+export async function globalStats(): Promise<GlobalStats> {
+  const d = await db();
+  const p = await d.select<{ n: number; act: number | null }[]>("SELECT COUNT(*) AS n, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS act FROM projects");
+  const r = await d.select<Record<string, number | null>[]>(
+    `SELECT COUNT(*) AS records,
+            SUM(CASE WHEN created_at >= $1 THEN 1 ELSE 0 END) AS week,
+            SUM(CASE WHEN created_at >= $2 AND created_at < $1 THEN 1 ELSE 0 END) AS prevWeek,
+            SUM(CASE WHEN sync_error IS NOT NULL THEN 1 ELSE 0 END) AS refused
+       FROM records WHERE deleted_at IS NULL`,
+    [isoDaysAgo(6), isoDaysAgo(13)],
+  );
+  const n = Number(p[0]?.n ?? 0);
+  const act = Number(p[0]?.act ?? 0);
+  return { projects: n, active: act, archived: n - act, records: Number(r[0]?.records ?? 0), week: Number(r[0]?.week ?? 0), prevWeek: Number(r[0]?.prevWeek ?? 0), toSend: await outboxCount(), refused: Number(r[0]?.refused ?? 0) };
+}
+
+/** Records created per local day for the last `days` days (oldest first). */
+export async function dayCounts(days: number, project?: string): Promise<{ day: string; n: number }[]> {
+  const rows = await (await db()).select<{ created_at: string }[]>(
+    `SELECT created_at FROM records WHERE deleted_at IS NULL AND created_at >= $1 ${project ? 'AND project = $2' : ''}`,
+    project ? [isoDaysAgo(days - 1), project] : [isoDaysAgo(days - 1)],
+  );
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const map = new Map<string, number>();
+  for (const r of rows) { const k = key(new Date(r.created_at)); map.set(k, (map.get(k) ?? 0) + 1); }
+  const out: { day: string; n: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); out.push({ day: key(d), n: map.get(key(d)) ?? 0 }); }
+  return out;
+}
+
+/** The most recently changed records across all projects. */
+export async function recentRecords(limit = 8): Promise<(LocalRecord & { project_title: string })[]> {
+  const rows = await (await db()).select<(RecordRow & { project_title: string })[]>(
+    'SELECT r.*, p.title AS project_title FROM records r JOIN projects p ON p.uuid = r.project WHERE r.deleted_at IS NULL ORDER BY r.updated_at DESC LIMIT $1', [limit],
+  );
+  return rows.map((r) => ({ ...toRecord(r), project_title: r.project_title }));
+}
+
+export interface PendingChange { uuid: string; op: string; project: string; project_title: string | null; changes: number; at: string; attempts: number; last_error: string | null; data: string | null; version: number | null }
+/** The offline change log grouped per record, for the Sync centre. */
+export async function pendingChanges(): Promise<PendingChange[]> {
+  return (await db()).select<PendingChange[]>(
+    `SELECT o.uuid, (SELECT op FROM outbox x WHERE x.uuid = o.uuid ORDER BY id DESC LIMIT 1) AS op, o.project, p.title AS project_title, COUNT(*) AS changes,
+            MAX(o.client_updated_at) AS at, MAX(o.attempts) AS attempts, MAX(o.last_error) AS last_error,
+            (SELECT data FROM records r WHERE r.uuid = o.uuid) AS data,
+            (SELECT version FROM records r WHERE r.uuid = o.uuid) AS version
+       FROM outbox o LEFT JOIN projects p ON p.uuid = o.project GROUP BY o.uuid ORDER BY MAX(o.id) DESC`,
+  );
+}
+
+/** Throw away the unsent change of one record. The server copy comes back at the next sync. */
+export async function discardChange(uuid: string) {
+  const d = await db();
+  const rec = await getRecord(uuid);
+  await d.execute('DELETE FROM outbox WHERE uuid = $1', [uuid]);
+  if (rec && rec.version === 0) {
+    await d.execute('DELETE FROM records WHERE uuid = $1', [uuid]);
+    await d.execute("DELETE FROM files WHERE record = $1 AND state = 'pending_upload'", [uuid]);
+  } else {
+    await d.execute('UPDATE records SET dirty = 0, sync_error = NULL WHERE uuid = $1', [uuid]);
+    await kvDel('last_sync'); // pull everything again so the server copy replaces the discarded edit
+  }
+}
+
+export async function refusedRecords(): Promise<(LocalRecord & { project_title: string })[]> {
+  const rows = await (await db()).select<(RecordRow & { project_title: string })[]>(
+    'SELECT r.*, p.title AS project_title FROM records r JOIN projects p ON p.uuid = r.project WHERE r.sync_error IS NOT NULL ORDER BY r.updated_at DESC',
+  );
+  return rows.map((r) => ({ ...toRecord(r), project_title: r.project_title }));
+}
+
+/** Quick search across every project (command palette). */
+export async function searchRecords(q: string, limit = 8): Promise<{ uuid: string; project: string; form: string | null; project_title: string; data: string; updated_at: string }[]> {
+  const like = `%${q.trim()}%`;
+  return (await db()).select(
+    'SELECT r.uuid, r.project, r.form, p.title AS project_title, r.data, r.updated_at FROM records r JOIN projects p ON p.uuid = r.project WHERE r.deleted_at IS NULL AND (r.uuid LIKE $1 OR r.data LIKE $1) ORDER BY r.updated_at DESC LIMIT $2',
+    [like, limit],
+  );
+}
+
+export async function filesForProject(project: string): Promise<LocalFile[]> {
+  return (await db()).select<LocalFile[]>('SELECT * FROM files WHERE project = $1 ORDER BY name COLLATE NOCASE', [project]);
+}
+
+export async function retryFailedFiles() {
+  await (await db()).execute("UPDATE files SET state = CASE WHEN local_path IS NOT NULL THEN 'pending_upload' ELSE 'remote' END, error = NULL WHERE state = 'error'");
+}
+
+export async function storageStats(): Promise<{ records: number; projects: number; files: number; offlineBytes: number; totalBytes: number }> {
+  const d = await db();
+  const r = await d.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM records WHERE deleted_at IS NULL');
+  const p = await d.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM projects');
+  const f = await d.select<{ n: number; off: number | null; tot: number | null }[]>('SELECT COUNT(*) AS n, SUM(CASE WHEN local_path IS NOT NULL THEN size ELSE 0 END) AS off, SUM(size) AS tot FROM files');
+  return { records: r[0]?.n ?? 0, projects: p[0]?.n ?? 0, files: f[0]?.n ?? 0, offlineBytes: Number(f[0]?.off ?? 0), totalBytes: Number(f[0]?.tot ?? 0) };
+}
+
+/** Next sync downloads every record again (repairs a local copy that looks wrong). */
+export async function resetCheckpoint() { await kvDel('last_sync'); }
+
 // ------------------------------------------------------------------ log & reset
 export async function logSync(ok: boolean, summary: string) {
   const d = await db();
   await d.execute('INSERT INTO sync_log (at, ok, summary) VALUES ($1, $2, $3)', [nowIso(), ok ? 1 : 0, summary]);
   await d.execute('DELETE FROM sync_log WHERE id NOT IN (SELECT id FROM sync_log ORDER BY id DESC LIMIT 100)');
 }
-export async function syncLog(): Promise<{ id: number; at: string; ok: number; summary: string }[]> {
-  return (await db()).select('SELECT * FROM sync_log ORDER BY id DESC LIMIT 20');
+export async function syncLog(limit = 20): Promise<{ id: number; at: string; ok: number; summary: string }[]> {
+  return (await db()).select('SELECT * FROM sync_log ORDER BY id DESC LIMIT $1', [limit]);
 }
 
 /** Sign out: remove every local copy (only allowed when nothing is waiting to be sent). */
