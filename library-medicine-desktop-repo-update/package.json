@@ -1,0 +1,40 @@
+{
+  "name": "library-medicine-desktop",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Library Medicine desktop app: offline-first data collection that syncs with librarymedicine.online",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "tauri": "tauri",
+    "app:dev": "tauri dev",
+    "app:build": "tauri build",
+    "icons": "tauri icon app-icon.png"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.105.0",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-dialog": "2.8.4",
+    "@tauri-apps/plugin-opener": "2.7.2",
+    "@tauri-apps/plugin-sql": "2.6.0",
+    "bootstrap-icons": "1.11.3",
+    "fflate": "0.8.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "read-excel-file": "9.3.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@tauri-apps/cli": "2.12.4",
+    "@types/node": "22.20.5",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "6.4.5"
+  }
+}

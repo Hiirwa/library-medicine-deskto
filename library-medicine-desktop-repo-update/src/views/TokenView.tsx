@@ -1,0 +1,114 @@
+import { useMemo, useState, type FormEvent } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { Brand } from '../components/Brand';
+import { Icon } from '../components/ui';
+import { api, apiError, native } from '../lib/native';
+import * as store from '../lib/db';
+import { useSession } from '../providers/AppProvider';
+import type { Me } from '../lib/types';
+
+const STEPS: { icon: string; title: string; text: string; tips: string[] }[] = [
+  { icon: 'person-circle', title: 'Open your account', text: 'On the website, click your name at the bottom of the menu, then Account & security.', tips: ['Use the button on the right to open the page directly.', 'Sign in to the website with the same account you just used here.'] },
+  { icon: 'key', title: 'Create a token', text: 'In the API tokens section, click Create token and name it “Desktop app” so you recognise it later.', tips: ['One token per computer is best, so you can revoke a lost laptop without affecting others.'] },
+  { icon: 'toggles', title: 'Choose read & write', text: 'Keep the scope “Read & write” so records entered offline can be sent. Leave the project empty to use all your projects.', tips: ['A read-only token can download data but cannot send your offline records.'] },
+  { icon: 'clipboard-check', title: 'Copy it once', text: 'The token starts with rdp_ and is shown only once. Copy it, then paste it into the box.', tips: ['If you lose it, create a new token and revoke the old one.'] },
+];
+const FAQ: [string, string][] = [
+  ['Why a token and not my password?', 'A token can be limited to read & write, revoked at any time and never reveals your password. The app stores only the token, in the Windows Credential Manager.'],
+  ['I cannot see the API tokens section', 'API tokens are part of the Pro and Max plans. Ask your project owner or upgrade your plan on the website.'],
+  ['The app says the token belongs to someone else', 'You created the token while signed in as another person. Sign out of the website, sign in as yourself and create a new token.'],
+  ['Is my token safe on this computer?', 'It is encrypted with your Windows account and never written to a file. Signing out removes the token and the offline copy.'],
+];
+
+/** Step 2 — guided instructions and API token, validated against the server and kept in the Windows Credential Manager. */
+export function TokenView() {
+  const { server, user, setTokenSaved, sync, signOut, toast } = useSession();
+  const [token, setToken] = useState('');
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [active, setActive] = useState(0);
+  const [done, setDone] = useState<boolean[]>([false, false, false, false]);
+  const [faq, setFaq] = useState<number | null>(null);
+
+  const t = token.trim();
+  const checks = useMemo(() => [['Starts with rdp_', /^rdp_/i.test(t)], ['Long enough', t.length >= 28], ['Only letters and digits', /^rdp_[a-z0-9]+$/i.test(t)]] as [string, boolean][], [t]);
+  const valid = /^rdp_[a-f0-9]{20,}$/i.test(t);
+  const doneCount = valid ? 4 : done.filter(Boolean).length;
+
+  const mark = (i: number) => setDone((d) => d.map((x, k) => (k === i ? !x : x)));
+  const next = (i: number) => { setDone((d) => d.map((x, k) => (k === i ? true : x))); setActive(Math.min(3, i + 1)); };
+
+  async function paste() {
+    try { const x = (await navigator.clipboard.readText()).trim(); if (x) { setToken(x); setError(''); setDone([true, true, true, true]); } else toast('The clipboard is empty.', 'error'); }
+    catch { toast('Could not read the clipboard. Paste with Ctrl+V.', 'error'); }
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!valid) { setError('That does not look like a Library Medicine API token (it starts with rdp_).'); return; }
+    setBusy(true);
+    try {
+      const me = await api<Me>('GET', 'api/v1/me', undefined, t);
+      if (me.status !== 200) { setError(me.status === 401 ? 'This token is not valid (revoked, expired or mistyped).' : apiError(me)); return; }
+      if (user && me.body.id !== user.id) { setError(`This token belongs to ${me.body.email}, not to ${user.email}. Create a token while signed in as yourself.`); return; }
+      if (!(me.body.scope?.scopes ?? []).includes('write')) { setError('This token is read-only. Create a "Read & write" token so your offline records can be sent.'); return; }
+      await native.secureSet('api_token', t);
+      await store.kvSet('token_scope', JSON.stringify(me.body.scope ?? null));
+      toast('Token saved securely. Downloading your projects…');
+      await setTokenSaved();
+      await sync();
+    } catch (err) { setError(String(err).replace(/^Error: /, '')); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="auth-bg">
+      <div className="auth-card anim-in" style={{ maxWidth: '72rem' }}>
+        <div className="flex items-center justify-between"><Brand />
+          <div className="flex items-center gap-3"><ol className="mini-steps" aria-label="Setup progress"><li className="done"><span><Icon name="check-lg" /></span>Sign in</li><li className="on"><span>2</span>Connect</li><li><span>3</span>Work</li></ol>
+            <button className="btn btn-ghost btn-sm" onClick={() => signOut()}><Icon name="box-arrow-left" />Sign out</button></div></div>
+        <h1 className="mt-6 text-3xl grad-text">Connect this computer</h1>
+        <p className="muted mt-1">Signed in as <b className="ink">{user?.name || user?.email}</b>. The app syncs with a personal API token, so your password is never stored.</p>
+        <div className="prog mt-4" role="progressbar" aria-valuenow={doneCount} aria-valuemin={0} aria-valuemax={4} aria-label="Instructions completed"><i style={{ width: `${(doneCount / 4) * 100}%` }} /><span>{doneCount} of 4 steps done</span></div>
+
+        <div className="mt-5 grid items-start gap-5" style={{ gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)' }}>
+          <ol className="space-y-2">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className={`istep ${active === i ? 'open' : ''} ${done[i] || valid ? 'done' : ''}`}>
+                <button type="button" className="ihead" onClick={() => setActive(i)} aria-expanded={active === i}>
+                  <span className="n">{done[i] || valid ? <Icon name="check-lg" /> : i + 1}</span><Icon name={s.icon} className="ic" /><b className="ink flex-1 text-left">{s.title}</b><Icon name={active === i ? 'chevron-up' : 'chevron-down'} className="muted" />
+                </button>
+                {active === i && (
+                  <div className="ibody anim-in"><p className="muted">{s.text}</p>
+                    <ul className="mt-2 space-y-1 text-sm">{s.tips.map((x) => <li key={x} className="flex gap-2"><Icon name="lightbulb" className="mt-0.5 text-[var(--rh-amber)]" /><span>{x}</span></li>)}</ul>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {i === 0 && <button type="button" className="btn btn-primary btn-sm" onClick={() => openUrl(`${server}/account#tokens`)}><Icon name="box-arrow-up-right" />Open Account & security</button>}
+                      {i === 1 && <button type="button" className="btn btn-sm" onClick={() => { navigator.clipboard?.writeText('Desktop app'); toast('Copied “Desktop app”'); }}><Icon name="clipboard" />Copy name “Desktop app”</button>}
+                      <button type="button" className="btn btn-sm" onClick={() => (done[i] ? mark(i) : next(i))}><Icon name={done[i] ? 'arrow-counterclockwise' : 'check2'} />{done[i] ? 'Undo' : i < 3 ? 'Done, next step' : 'Done'}</button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+
+          <div className="space-y-4">
+            <form onSubmit={submit} className="well p-5">
+              <label className="label" htmlFor="token">Your API token</label>
+              <div className="field-ic"><Icon name="key" /><input id="token" type={show ? 'text' : 'password'} className="field" style={{ paddingRight: '5.4rem', fontFamily: 'ui-monospace, Consolas, monospace' }} placeholder="rdp_…" value={token} onChange={(e) => { setToken(e.target.value); setError(''); }} autoComplete="off" spellCheck={false} />
+                <span className="eye" style={{ width: 'auto', display: 'flex', gap: '.15rem' }}><button type="button" className="eye" style={{ position: 'static' }} onClick={() => setShow((x) => !x)} aria-label={show ? 'Hide token' : 'Show token'}><Icon name={show ? 'eye-slash' : 'eye'} /></button><button type="button" className="eye" style={{ position: 'static' }} onClick={paste} aria-label="Paste from clipboard" title="Paste from clipboard"><Icon name="clipboard" /></button></span></div>
+              <ul className="mt-3 flex flex-wrap gap-2">{checks.map(([l, ok]) => <li key={l} className={`chip ${t ? (ok ? 'chip-ok' : 'chip-warn') : ''}`}><Icon name={t ? (ok ? 'check2' : 'x') : 'circle'} />{l}</li>)}</ul>
+              {error && <div className="notice danger mt-3" role="alert"><Icon name="exclamation-octagon" /><span>{error}</span></div>}
+              <button className="btn btn-primary btn-lg mt-4 w-full" disabled={busy || !valid}>{busy ? <><Icon name="arrow-repeat" className="spin" />Checking…</> : <><Icon name="cloud-arrow-down" />Save & download my projects</>}</button>
+              <p className="help mt-3"><Icon name="shield-lock" className="mr-1" />Stored in the Windows Credential Manager, encrypted with your Windows account.</p>
+            </form>
+            <div className="notice info"><Icon name="gem" /><span>API tokens are part of the Pro and Max plans. You can revoke a token on the website at any time; the app then asks for a new one.</span></div>
+            <div><span className="label-cap">Trouble?</span>
+              <div className="space-y-2">{FAQ.map(([q, a], i) => (
+                <div key={q} className="well"><button type="button" className="faq-q" onClick={() => setFaq(faq === i ? null : i)} aria-expanded={faq === i}><span className="flex-1 text-left">{q}</span><Icon name={faq === i ? 'dash' : 'plus'} /></button>{faq === i && <p className="muted px-4 pb-3 text-sm selectable">{a}</p>}</div>))}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
