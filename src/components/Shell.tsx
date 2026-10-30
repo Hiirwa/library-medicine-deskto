@@ -10,10 +10,11 @@ import { ago, shortDate } from '../lib/time';
 import { initials } from '../lib/format';
 import { useSession } from '../providers/AppProvider';
 import { useUi, type ProjectTab, type Route } from '../providers/UiProvider';
+import { checkAccess } from '../lib/access';
 
 export const useProjects = () => useQuery({ queryKey: ['projects'], queryFn: store.listProjects });
 
-const TAB_LABEL: Record<ProjectTab, string> = { overview: 'Overview', data: 'Data', variables: 'Variables', forms: 'Forms', files: 'Files' };
+const TAB_LABEL: Record<ProjectTab, string> = { overview: 'Overview', variables: 'Variables', forms: 'Forms', statistics: 'Statistics', workbench: 'Workbench', dashboard: 'Dashboard', reports: 'Reports', data: 'Data view', import: 'Import', export: 'Export', files: 'Files' };
 const PAGE_LABEL: Record<string, string> = { home: 'My projects', sync: 'Sync centre', settings: 'Settings', help: 'Help & documentation' };
 
 function NavItem({ icon, label, active, onClick, end, title }: { icon: string; label: string; active?: boolean; onClick: () => void; end?: ReactNode; title?: string }) {
@@ -35,6 +36,7 @@ function Sidebar() {
   const forms = useQuery({ queryKey: ['forms', project?.uuid], queryFn: () => store.listForms(project!.uuid), enabled: !!project });
   const tab = route.page === 'project' ? route.tab : null;
   const toProject = (t: ProjectTab) => project && go({ page: 'project', project: project.uuid, tab: t });
+  const lock = (t: ProjectTab) => (project && !checkAccess(t, project).ok ? <Icon name="lock-fill" className="lock-ic" /> : undefined);
 
   async function doSignOut() {
     const n = pending.data ?? 0;
@@ -94,8 +96,15 @@ function Sidebar() {
             <NavItem icon="speedometer2" label="Overview" active={tab === 'overview'} onClick={() => toProject('overview')} />
             <NavItem icon="diagram-3" label="Variables" active={tab === 'variables'} onClick={() => toProject('variables')} />
             <NavItem icon="ui-checks-grid" label="Forms" active={tab === 'forms'} onClick={() => toProject('forms')} />
-            <div className="nav-label">Data</div>
-            <NavItem icon="table" label="Data" active={tab === 'data'} onClick={() => toProject('data')} />
+            <div className="nav-label">Analysis</div>
+            <NavItem icon="calculator" label="Statistics" active={tab === 'statistics'} onClick={() => toProject('statistics')} end={lock('statistics')} />
+            <NavItem icon="bezier2" label="Workbench" active={tab === 'workbench'} onClick={() => toProject('workbench')} end={lock('workbench')} />
+            <NavItem icon="pie-chart" label="Dashboard" active={tab === 'dashboard'} onClick={() => toProject('dashboard')} end={lock('dashboard')} />
+            <NavItem icon="file-earmark-bar-graph" label="Reports" active={tab === 'reports'} onClick={() => toProject('reports')} end={lock('reports')} />
+            <div className="nav-label">Data management</div>
+            <NavItem icon="table" label="Data view" active={tab === 'data'} onClick={() => toProject('data')} end={stats.data?.total ? <span className="count soft">{stats.data.total}</span> : undefined} />
+            <NavItem icon="cloud-upload" label="Import" active={tab === 'import'} onClick={() => toProject('import')} end={lock('import')} />
+            <NavItem icon="box-arrow-down" label="Export" active={tab === 'export'} onClick={() => toProject('export')} />
             <NavItem icon="paperclip" label="Files" active={tab === 'files'} onClick={() => toProject('files')} />
           </>
         )}

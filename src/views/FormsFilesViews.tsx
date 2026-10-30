@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Empty, Icon, PageHead, Stat } from '../components/ui';
 import * as store from '../lib/db';
@@ -18,11 +18,22 @@ export function FormsView({ project, vars, forms }: ProjectCtx) {
   const records = useQuery({ queryKey: ['records', project.uuid, ''], queryFn: () => store.listRecords(project.uuid, '') });
   const per = useMemo(() => { const m = new Map<string, number>(); for (const r of records.data ?? []) m.set(r.form ?? '', (m.get(r.form ?? '') ?? 0) + 1); return m; }, [records.data]);
   const canAdd = project.can.add && project.status === 'active';
+  const [q, setQ] = useState('');
+  const [openForm, setOpenForm] = useState<string | null>(null);
+  const label = (name?: string) => { const v = vars.find((x) => x.name === name); return v?.label || name || ''; };
+  const answeredPct = (f: Form) => {
+    const rs = (records.data ?? []).filter((r) => r.form === f.uuid); const names = (f.layout?.pages ?? []).flatMap((p) => [...(p.items ?? []), ...(p.sections ?? []).flatMap((s) => s.items ?? [])]).filter((i) => i.type === 'variable' && i.var).map((i) => i.var as string);
+    if (!rs.length || !names.length) return null;
+    return Math.round((rs.reduce((a, r) => a + names.filter((n) => r.data[n] !== undefined && r.data[n] !== null && r.data[n] !== '').length / names.length, 0) / rs.length) * 100);
+  };
+  const last = (f: Form) => (records.data ?? []).filter((r) => r.form === f.uuid).map((r) => r.updated_at).sort().pop();
+  const shownForms = forms.filter((f) => !q.trim() || f.title.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="space-y-4">
       <PageHead icon="ui-checks-grid" title="Forms" sub={`${plural(forms.length, 'form')} available offline`} />
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(19rem, 1fr))' }}>
-        {forms.map((f) => (
+      {forms.length > 3 && <div className="toolbar"><div className="field-ic min-w-[16rem] flex-1"><Icon name="search" /><input id="search" className="field" placeholder="Search forms…" value={q} onChange={(e) => setQ(e.target.value)} /><kbd>/</kbd></div></div>}
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }}>
+        {shownForms.map((f) => (
           <div key={f.uuid} className="pcard anim-in" style={{ cursor: 'default' }}>
             <div className="flex items-start gap-3">
               <span className="pc-ic" style={{ background: 'var(--v-grad)' }}><Icon name="ui-checks-grid" /></span>
@@ -33,6 +44,9 @@ export function FormsView({ project, vars, forms }: ProjectCtx) {
               <div className="well px-3 py-2"><b className="num block text-lg ink">{sectionsOf(f)}</b><span className="muted text-xs font-bold uppercase">Sections</span></div>
               <div className="well px-3 py-2"><b className="num block text-lg ink">{per.get(f.uuid) ?? 0}</b><span className="muted text-xs font-bold uppercase">Records</span></div>
             </div>
+            {(() => { const pc = answeredPct(f); const l = last(f); return (<div className="k-teal"><div className="mb-1 flex justify-between text-sm"><span className="muted">Average answered</span><b className="num" style={{ color: 'var(--k)' }}>{pc === null ? '—' : `${pc}%`}</b></div><div className="bar"><i style={{ width: `${pc ?? 0}%` }} /></div>{l && <div className="muted mt-1 text-xs">Last entry {new Date(l).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>}</div>); })()}
+            <button className="btn btn-sm" onClick={() => setOpenForm(openForm === f.uuid ? null : f.uuid)} aria-expanded={openForm === f.uuid}><Icon name={openForm === f.uuid ? 'chevron-up' : 'list-nested'} />{openForm === f.uuid ? 'Hide structure' : 'Preview structure'}</button>
+            {openForm === f.uuid && <div className="well max-h-64 space-y-3 overflow-y-auto p-3 text-sm">{(f.layout?.pages ?? []).map((pg, pi) => (<div key={pg.id ?? pi}><b className="ink block">{pg.title || `Page ${pi + 1}`}</b>{[...(pg.items ?? []).map((i) => ({ t: undefined as string | undefined, i })), ...(pg.sections ?? []).flatMap((sec) => [{ t: sec.title, i: undefined as undefined }, ...(sec.items ?? []).map((i) => ({ t: undefined as string | undefined, i }))])].map((x, k) => x.i ? (x.i.type === 'variable' ? <div key={k} className="muted flex items-center gap-2 pl-3"><Icon name="dot" />{label(x.i.var)}</div> : null) : <div key={k} className="ink mt-1 pl-1 font-bold">{x.t}</div>)}</div>))}</div>}
             {canAdd && <button className="btn btn-primary" onClick={() => openEditor({ project: project.uuid, record: null, form: f.uuid })}><Icon name="pencil-square" />Fill in this form</button>}
           </div>
         ))}

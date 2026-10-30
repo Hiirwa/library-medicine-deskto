@@ -9,6 +9,22 @@ An offline-first Windows app for **librarymedicine.online**. Researchers and dat
 
 ---
 
+## What's new in 1.2
+
+- **Sign-in** redesigned: split layout with rotating feature highlights, show/hide password, Caps Lock hint, remembered email, server address with a connection test, setup progress.
+- **Connect this computer** is now an interactive guide: expandable steps with progress bar, live token checks, paste button, troubleshooting answers.
+- **Help** has a searchable, topic-filtered FAQ and a tour of the project areas.
+- **Project:** richer Overview (health checklist, data-quality ring, shortcuts), Variables (type chart, filters, completeness) and Forms (progress, structure preview).
+- **Analysis (new):** Statistics, Workbench (frequencies, descriptives, cross-tab with chi-square, ANOVA, correlation with regression), Dashboard (customisable live charts), Reports (print/PDF, HTML, Markdown; pin results from Statistics and Workbench).
+- **Data management:** Data view with row selection, bulk export/delete and date filter; new Import wizard (CSV/TSV/JSON with column matching and row checks) and Export centre (CSV labels/codes, JSON, codebook, data package).
+- **Import:** Excel (.xlsx), OpenDocument (.ods), CSV/TSV/TXT, JSON, JSONL, XML, HTML and Markdown tables, or pasted cells; sheet picker and remembered column matching.
+- **Export:** CSV (labels or codes), Excel spreadsheet (.xml), TSV, JSON, JSON Lines, XML, HTML, SQL, codebook and data package.
+- **Smooth loading:** skeleton placeholders, tabs loaded on demand and preloaded when idle, deferred search, fade-in pages and charts (respects reduced-motion).
+- **Design:** every text, icon and card carries a shadow; no borders anywhere (`src/pro.css`).
+- `src-tauri/src/lib.rs` now also allows saving `.html` exports. Rebuild the installers (GitHub Action "Build Windows installer") to ship this version.
+
+---
+
 ## What's new in 1.1.0
 
 **Same design as librarymedicine.online.** The app now uses the website's design system (`brand.css`): Roboto Condensed, brand blue + clinical teal, borderless cards separated by shadows, the same sidebar with the logo, project card, section labels and user menu, the same breadcrumb top bar, page heads, stat tiles and data table. Light and dark themes follow the website (or Windows).

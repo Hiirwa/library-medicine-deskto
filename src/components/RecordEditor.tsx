@@ -1,3 +1,4 @@
+import { Rich } from './Rich';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { open as pickFile, ask } from '@tauri-apps/plugin-dialog';
@@ -211,7 +212,7 @@ export function RecordEditor({ target, project, variables, forms, source, onClos
               <section key={si} className="card p-6 anim-in" style={{ marginBottom: '1.2rem' }}>
                 {multi && <div className="label-cap" style={{ color: 'var(--rh-teal)' }}>Section {step + 1} of {sections.length}</div>}
                 <h3 className="text-lg">{s.title}</h3>
-                {s.description && <p className="muted mt-1 text-sm">{s.description}</p>}
+                {s.description && <Rich html={s.description} className="muted mt-1 text-sm" />}
                 <div className="mt-5">
                   {s.vars.map((v) => {
                     const f = fileFor(v);
@@ -222,7 +223,7 @@ export function RecordEditor({ target, project, variables, forms, source, onClos
                           {v.label || v.name}{v.required && v.type !== 'calculated' && <span style={{ color: 'var(--rh-danger)' }}> *</span>}
                           {v.is_pii && <span className="chip chip-warn ml-2" style={{ padding: '0 .4rem' }}><Icon name="shield-lock" />personal</span>}
                         </label>
-                        {v.help_text && <p className="help mb-1.5">{v.help_text}</p>}
+                        {v.help_text && <Rich html={v.help_text} className="help mb-1.5" />}
                         <FieldInput v={v} value={data[v.name]} disabled={readOnly} masked={v.is_pii && !project.can.pii && !isNew}
                           onChange={(val) => { setData((d) => ({ ...d, [v.name]: val })); setTouched(true); }}
                           fileSlot={

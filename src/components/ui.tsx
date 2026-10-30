@@ -95,3 +95,21 @@ export function StatusChip({ status }: { status: string }) {
   const ic = status === 'complete' ? 'check2-circle' : status === 'flagged' ? 'flag' : status === 'draft' ? 'pencil' : 'circle';
   return <span className={`chip ${cls}`}><Icon name={ic} />{status.charAt(0).toUpperCase() + status.slice(1)}</span>;
 }
+
+export function Skeleton({ h = '1rem', w = '100%', r = '.6rem', className = '' }: { h?: string; w?: string; r?: string; className?: string }) {
+  return <span className={`skel ${className}`} style={{ height: h, width: w, borderRadius: r }} aria-hidden="true" />;
+}
+
+/** Placeholder shaped like a typical page (header, stat tiles, two cards) shown while data loads. */
+export function PageSkeleton() {
+  return (
+    <div className="space-y-4" role="status" aria-label="Loading">
+      <div className="page-head" style={{ gap: '1rem' }}><Skeleton h="3.25rem" w="3.25rem" r="1rem" /><div className="flex-1 space-y-2"><Skeleton h="1.5rem" w="14rem" /><Skeleton h=".9rem" w="22rem" /></div><Skeleton h="2.4rem" w="8rem" r=".7rem" /></div>
+      <div className="stats">{Array.from({ length: 5 }, (_, i) => <div key={i} className="stat"><Skeleton h="2.45rem" w="2.45rem" r=".8rem" /><span className="flex-1 space-y-1.5"><Skeleton h="1.1rem" w="55%" /><Skeleton h=".7rem" w="80%" /></span></div>)}</div>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)' }}>
+        <div className="card space-y-3 p-5"><Skeleton h="1.2rem" w="9rem" /><Skeleton h="11rem" r="1rem" /></div>
+        <div className="card space-y-3 p-5"><Skeleton h="1.2rem" w="7rem" />{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} h=".9rem" />)}</div>
+      </div>
+    </div>
+  );
+}
