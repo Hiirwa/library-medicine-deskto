@@ -33,6 +33,7 @@
     "publisher": "Library Medicine",
     "copyright": "© Library Medicine",
     "category": "Productivity",
+    "licenseFile": "installer/license.rtf",
     "shortDescription": "Offline data collection for Library Medicine",
     "longDescription": "Collect and edit research records without internet. Changes sync automatically with librarymedicine.online when you are back online.",
     "icon": [
@@ -51,12 +52,10 @@
         "installerIcon": "icons/icon.ico",
         "headerImage": "installer/header.bmp",
         "sidebarImage": "installer/sidebar.bmp",
-        "license": "installer/license.txt",
         "startMenuFolder": "Library Medicine"
       },
       "wix": {
         "language": "en-US",
-        "license": "installer/license.rtf",
         "bannerPath": "installer/wix-banner.bmp",
         "dialogImagePath": "installer/wix-dialog.bmp"
       }
