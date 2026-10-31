@@ -19,7 +19,8 @@ body, h1, h2, h3, h4, p, span, b, strong, small, label, li, td, th, dt, dd, summ
 .btn-primary, .count, .avatar, .ph-ic, .logo, .pc-ic, .step.done .n, .step.on .n, .toast .t-ic, .metric .m-ic, .quick .q-ic, .pk-ic, .feat-ic, .wiz li.on .n, .mini-steps li.on span, .istep.open .n, .istep.done .n { text-shadow: var(--ts-inv); }
 input::placeholder, textarea::placeholder { text-shadow: none; }
 /* gradient text: text-shadow would bleed through the transparent glyphs, so use a filter */
-.grad-text, .page-head h1 { text-shadow: none; filter: drop-shadow(0 2px 2px rgba(15, 23, 42, .28)); }
+.grad-text, .page-head h1, .card-title h2, .brand-name, .hero h1, .auth-h1 { text-shadow: none; filter: drop-shadow(0 2px 2px rgba(15, 23, 42, .28)); }
+[data-theme="dark"] .grad-text, [data-theme="dark"] .page-head h1, [data-theme="dark"] .card-title h2, [data-theme="dark"] .brand-name, [data-theme="dark"] .hero h1 { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .55)); }
 
 /* icons */
 .bi { filter: var(--is); }
@@ -487,3 +488,83 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
 @media (prefers-reduced-motion: reduce) { .cn-hero::before, .cn-hero::after, .wm .hot, .cn-form.ok .btn-primary { animation: none; } }
 .eye-group { position: absolute; right: .4rem; top: 50%; transform: translateY(-50%); display: flex; gap: .3rem; }
 .eye-group .eye { position: static; transform: none; }
+
+/* ------------------------------------------------------------------ cards side by side in a grid: the shorter one stays in view while its taller neighbour scrolls
+   Each card sits in a cell that is as tall as its grid row; the card is sticky inside that cell, so it can never leave its own row or overlap the next one. */
+.sg-cell { display: block; min-width: 0; }
+.sg-cell > * { position: sticky; top: .75rem; }
+
+/* =====================================================================
+   Colour per area, richer surfaces and small interactions
+   Each page (and each sidebar item) sets its own accent: --ac (strong), --ac-2 (lighter), --ac-rgb, --ac-t (for text)
+   ===================================================================== */
+[data-accent="blue"]    { --ac: #2d4bd8; --ac-2: #4a66f0; --ac-rgb: 45, 75, 216;   --ac-t: #2d4bd8; }
+[data-accent="violet"]  { --ac: #6d28d9; --ac-2: #7c3aed; --ac-rgb: 109, 40, 217;  --ac-t: #6d28d9; }
+[data-accent="teal"]    { --ac: #0f766e; --ac-2: #0d9488; --ac-rgb: 15, 118, 110;  --ac-t: #0f766e; }
+[data-accent="rose"]    { --ac: #be123c; --ac-2: #e11d48; --ac-rgb: 190, 18, 60;   --ac-t: #be123c; }
+[data-accent="indigo"]  { --ac: #4338ca; --ac-2: #4f46e5; --ac-rgb: 67, 56, 202;   --ac-t: #4338ca; }
+[data-accent="amber"]   { --ac: #b45309; --ac-2: #d97706; --ac-rgb: 180, 83, 9;    --ac-t: #b45309; }
+[data-accent="cyan"]    { --ac: #0e7490; --ac-2: #0891b2; --ac-rgb: 14, 116, 144;  --ac-t: #0e7490; }
+[data-accent="emerald"] { --ac: #047857; --ac-2: #059669; --ac-rgb: 4, 120, 87;    --ac-t: #047857; }
+[data-accent="orange"]  { --ac: #c2410c; --ac-2: #ea580c; --ac-rgb: 194, 65, 12;   --ac-t: #c2410c; }
+[data-accent="slate"]   { --ac: #334155; --ac-2: #475569; --ac-rgb: 51, 65, 85;    --ac-t: #334155; }
+[data-accent="sky"]     { --ac: #0369a1; --ac-2: #0284c7; --ac-rgb: 3, 105, 161;   --ac-t: #0369a1; }
+[data-theme="dark"] [data-accent="blue"]    { --ac-t: #9db0ff; } [data-theme="dark"] [data-accent="violet"] { --ac-t: #c4b5fd; }
+[data-theme="dark"] [data-accent="teal"]    { --ac-t: #5eead4; } [data-theme="dark"] [data-accent="rose"]   { --ac-t: #fda4af; }
+[data-theme="dark"] [data-accent="indigo"]  { --ac-t: #a5b4fc; } [data-theme="dark"] [data-accent="amber"]  { --ac-t: #fcd34d; }
+[data-theme="dark"] [data-accent="cyan"]    { --ac-t: #67e8f9; } [data-theme="dark"] [data-accent="emerald"] { --ac-t: #6ee7b7; }
+[data-theme="dark"] [data-accent="orange"]  { --ac-t: #fdba74; } [data-theme="dark"] [data-accent="slate"]  { --ac-t: #cbd5e1; }
+[data-theme="dark"] [data-accent="sky"]     { --ac-t: #7dd3fc; }
+
+/* the page: a soft glow of its colour, a tinted header, a gradient icon */
+.page[data-accent] { background-image: radial-gradient(54rem 20rem at 100% -5rem, rgba(var(--ac-rgb), .10), transparent 62%), radial-gradient(38rem 14rem at 0% 0%, rgba(var(--ac-rgb), .05), transparent 60%); background-repeat: no-repeat; background-attachment: local; }
+.page[data-accent] .page-head { background: linear-gradient(115deg, rgba(var(--ac-rgb), .09), var(--rh-surface) 60%); }
+.page[data-accent] .ph-ic:not(.teal):not(.amber) { background: linear-gradient(135deg, var(--ac) 35%, var(--ac-2)); box-shadow: 0 10px 22px -8px rgba(var(--ac-rgb), .75); }
+.page[data-accent] .page-head h1 { background-image: linear-gradient(90deg, var(--rh-ink) 15%, var(--ac-t) 140%); }
+.page[data-accent] .label-cap { color: var(--ac-t); }
+.page[data-accent] .link { color: var(--ac-t); }
+.page[data-accent] .seg button:hover:not(.on) { color: var(--ac-t); }
+.page[data-accent] .seg button.on, .page[data-accent] .chip-btn.on { background: var(--ac); box-shadow: 0 8px 16px -8px rgba(var(--ac-rgb), .85); }
+.page[data-accent] .empty .e-ic { background: linear-gradient(135deg, rgba(var(--ac-rgb), .18), rgba(var(--ac-rgb), .06)); color: var(--ac-t); box-shadow: var(--rh-sh-1); }
+.page[data-accent] .card-title .ic:not([class*="k-"]) { --k: var(--ac-t); --k-soft: rgba(var(--ac-rgb), .13); }
+.page[data-accent] .pk-ic, .page[data-accent] .ic-sm { background: linear-gradient(135deg, var(--ac) 35%, var(--ac-2)); box-shadow: 0 8px 16px -8px rgba(var(--ac-rgb), .8); }
+.page[data-accent] .pick.on { background: rgba(var(--ac-rgb), .09); box-shadow: var(--rh-sh-2), 0 0 0 3px rgba(var(--ac-rgb), .3); }
+/* tables */
+.page[data-accent] .tbl thead th { color: var(--ac-t); background: linear-gradient(90deg, rgba(var(--ac-rgb), .12), rgba(var(--ac-rgb), .04)); }
+.page[data-accent] .tbl tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--ac); }
+.page[data-accent] .tbl tbody tr:hover td { background: rgba(var(--ac-rgb), .06); }
+/* stat tiles: a different colour each, in sequence (tiles with a meaning, like red or amber, keep theirs) */
+.page .stats > .stat.k-brand:nth-child(6n+1) { --k: var(--ac-t); --k-soft: rgba(var(--ac-rgb), .13); }
+.page .stats > .stat.k-brand:nth-child(6n+2) { --k: #0f766e; --k-soft: rgba(13, 148, 136, .13); }
+.page .stats > .stat.k-brand:nth-child(6n+3) { --k: #6d28d9; --k-soft: rgba(124, 58, 237, .13); }
+.page .stats > .stat.k-brand:nth-child(6n+4) { --k: #b45309; --k-soft: rgba(217, 119, 6, .14); }
+.page .stats > .stat.k-brand:nth-child(6n+5) { --k: #be123c; --k-soft: rgba(225, 29, 72, .12); }
+.page .stats > .stat.k-brand:nth-child(6n+6) { --k: #0369a1; --k-soft: rgba(2, 132, 199, .13); }
+[data-theme="dark"] .page .stats > .stat.k-brand:nth-child(6n+2) { --k: #5eead4; } [data-theme="dark"] .page .stats > .stat.k-brand:nth-child(6n+3) { --k: #c4b5fd; }
+[data-theme="dark"] .page .stats > .stat.k-brand:nth-child(6n+4) { --k: #fcd34d; } [data-theme="dark"] .page .stats > .stat.k-brand:nth-child(6n+5) { --k: #fda4af; }
+[data-theme="dark"] .page .stats > .stat.k-brand:nth-child(6n+6) { --k: #7dd3fc; }
+.stat { transition: transform .2s var(--rh-ease), box-shadow .2s; }
+.stat:hover { transform: translateY(-2px); box-shadow: var(--rh-sh-2); }
+.stat .ic { transition: transform .25s var(--rh-ease); }
+.stat:hover .ic { transform: scale(1.1) rotate(-5deg); }
+/* cards that open something light up in their colour */
+.pcard:hover, .fi-card:hover, .sh-card:hover, .vcard:hover, .tool:hover, .plan:hover { box-shadow: var(--rh-sh-3), 0 0 0 2px rgba(var(--ac-rgb, 45, 75, 216), .22); }
+/* sidebar: every item has its own colour */
+.nav-item[data-hue] > .bi:first-child { color: var(--ac-t); background: rgba(var(--ac-rgb), .11); }
+.nav-item[data-hue]:hover { background: rgba(var(--ac-rgb), .08); }
+.nav-item[data-hue]:hover > .bi:first-child { background: rgba(var(--ac-rgb), .2); color: var(--ac-t); transform: scale(1.1) rotate(-5deg); }
+.nav-item.active[data-hue] { background: linear-gradient(135deg, var(--ac) 45%, var(--ac-2)); color: #fff; box-shadow: 0 10px 20px -10px rgba(var(--ac-rgb), .9); }
+.nav-item.active[data-hue] > .bi:first-child { background: rgba(255, 255, 255, .22); color: #fff; transform: none; }
+[data-theme="dark"] .nav-item.active[data-hue] { background: linear-gradient(135deg, var(--ac) 30%, var(--ac-2)); }
+/* press feedback */
+.has-ripple { position: relative; overflow: hidden; }
+.ripple { position: absolute; border-radius: 999px; background: rgba(255, 255, 255, .5); transform: scale(0); animation: rip .62s ease-out forwards; pointer-events: none; }
+.btn:not(.btn-primary):not(.btn-danger-solid) .ripple, .chip-btn:not(.on) .ripple, .nav-item:not(.active) .ripple, .seg button:not(.on) .ripple, .pick .ripple, .tool .ripple { background: rgba(var(--ac-rgb, 45, 75, 216), .24); }
+@keyframes rip { to { transform: scale(1); opacity: 0; } }
+.btn:active:not(:disabled) { transform: scale(.97); }
+/* back to the top */
+.to-top { position: fixed; right: 1.5rem; bottom: 3.6rem; z-index: 40; width: 2.9rem; height: 2.9rem; border-radius: 999px; display: grid; place-items: center; background: linear-gradient(135deg, var(--rh-brand), var(--rh-brand-500)); color: #fff; font-size: 1.25rem; cursor: pointer; box-shadow: 0 12px 24px -10px rgba(var(--rh-brand-rgb), .9); opacity: 0; transform: translateY(14px) scale(.85); pointer-events: none; transition: opacity .25s, transform .25s var(--rh-ease); text-shadow: var(--ts-inv); }
+.to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.to-top.show:hover { transform: translateY(-3px) scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .ripple { display: none; } .stat:hover .ic, .nav-item[data-hue]:hover > .bi:first-child { transform: none; } }
+.page[data-accent] .seg button.on, .page[data-accent] .seg.light button.on, .page[data-accent] .chip-btn.on { color: #fff; text-shadow: var(--ts-inv); }

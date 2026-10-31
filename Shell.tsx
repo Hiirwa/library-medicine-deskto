@@ -11,6 +11,7 @@ import { initials } from '../lib/format';
 import { useSession } from '../providers/AppProvider';
 import { useUi, type ProjectTab, type Route } from '../providers/UiProvider';
 import { checkAccess } from '../lib/access';
+import { NAV_HUE } from '../lib/accent';
 
 export const useProjects = () => useQuery({ queryKey: ['projects'], queryFn: store.listProjects });
 
@@ -19,7 +20,7 @@ const PAGE_LABEL: Record<string, string> = { home: 'My projects', sync: 'Sync ce
 
 function NavItem({ icon, label, active, onClick, end, title }: { icon: string; label: string; active?: boolean; onClick: () => void; end?: ReactNode; title?: string }) {
   return (
-    <button type="button" className={`nav-item ${active ? 'active' : ''}`} onClick={onClick} title={title ?? label} aria-current={active ? 'page' : undefined}>
+    <button type="button" className={`nav-item ${active ? 'active' : ''}`} data-hue={NAV_HUE[label]} data-accent={NAV_HUE[label]} onClick={onClick} title={title ?? label} aria-current={active ? 'page' : undefined}>
       <Icon name={icon} /><span className="txt">{label}</span>{end && <span className="nav-end">{end}</span>}
     </button>
   );

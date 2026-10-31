@@ -139,7 +139,7 @@ function FormsTab({ o, project, canWrite, onEdit, onQr, run }: { o: Overview; pr
       {o.forms.map((f) => {
         const a = ACCESS_INFO[f.access] ?? ACCESS_INFO.assigned;
         return (
-          <section key={f.id} className="card sh-card anim-in">
+          <div key={f.id} className="sg-cell"><section className="card sh-card anim-in">
             <div className="flex items-start gap-3">
               <span className="pk-ic"><Icon name={a.icon} /></span>
               <div className="min-w-0 flex-1"><h3 className="truncate text-lg" title={f.title}>{f.title}</h3>
@@ -170,7 +170,7 @@ function FormsTab({ o, project, canWrite, onEdit, onQr, run }: { o: Overview; pr
               <button className="btn btn-sm" onClick={() => openUrl(`${server.replace(/\/$/, '')}/p/${project}/forms/${f.id}/edit?share=1`).catch(() => {})} title="Open the form builder on the website"><Icon name="globe2" /></button>
               <button className="btn btn-primary btn-sm" disabled={!canWrite} onClick={() => onEdit(f)}><Icon name="sliders" />Share &amp; settings</button>
             </div>
-          </section>
+          </section></div>
         );
       })}
     </div>

@@ -25,8 +25,27 @@ export function CardTitle({ icon, title, sub, tone, children }: { icon: string; 
   );
 }
 
+/** A number that counts up to its value (skipped for people who prefer reduced motion). */
+export function CountUp({ value }: { value: ReactNode }) {
+  const m = typeof value === 'number' ? [String(value), String(value), ''] : typeof value === 'string' ? /^(\d[\d,]*(?:\.\d+)?)(%?)$/.exec(value) : null;
+  const target = m ? Number(String(m[1]).replace(/,/g, '')) : NaN;
+  const suffix = m ? (typeof value === 'string' ? m[2] : '') : '';
+  const [n, setN] = useState(Number.isFinite(target) ? 0 : NaN);
+  useEffect(() => {
+    if (!Number.isFinite(target)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || target === 0) { setN(target); return; }
+    let raf = 0; const t0 = performance.now(); const dur = 650;
+    const tick = (t: number) => { const k = Math.min(1, (t - t0) / dur); setN(target * (1 - Math.pow(1 - k, 3))); if (k < 1) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  if (!Number.isFinite(target)) return <>{value}</>;
+  const shown = Number.isInteger(target) ? Math.round(n) : Math.round(n * 10) / 10;
+  return <>{shown.toLocaleString()}{suffix}</>;
+}
+
 export function Stat({ icon, value, label, tone = 'k-brand', active, onClick, title }: { icon: string; value: ReactNode; label: string; tone?: string; active?: boolean; onClick?: () => void; title?: string }) {
-  const inner = (<><span className="ic"><Icon name={icon} /></span><span className="min-w-0"><b>{value}</b><small>{label}</small></span></>);
+  const inner = (<><span className="ic"><Icon name={icon} /></span><span className="min-w-0"><b><CountUp value={value} /></b><small>{label}</small></span></>);
   return onClick
     ? <button type="button" className={`stat ${tone} ${active ? 'active' : ''}`} onClick={onClick} aria-pressed={active} title={title}>{inner}</button>
     : <div className={`stat ${tone}`} title={title}>{inner}</div>;
