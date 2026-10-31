@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Brand } from '../components/Brand';
 import { Icon } from '../components/ui';
@@ -6,6 +6,8 @@ import { api, apiError, native } from '../lib/native';
 import * as store from '../lib/db';
 import { useSession } from '../providers/AppProvider';
 import type { Me } from '../lib/types';
+import { apiTokenAccess, isPlanRefusal } from '../lib/plans';
+import { PlansView } from './PlansView';
 
 const STEPS: { icon: string; title: string; text: string; tips: string[] }[] = [
   { icon: 'person-circle', title: 'Open your account', text: 'On the website, click your name at the bottom of the menu, then Account & security.', tips: ['Use the button on the right to open the page directly.', 'Sign in to the website with the same account you just used here.'] },
@@ -20,6 +22,30 @@ const FAQ: [string, string][] = [
   ['Is my token safe on this computer?', 'It is encrypted with your Windows account and never written to a file. Signing out removes the token and the offline copy.'],
 ];
 
+/** Two side-by-side columns where the shorter one stays in view while the longer one scrolls. */
+function useStickyShorter() {
+  const left = useRef<HTMLOListElement>(null);
+  const right = useRef<HTMLDivElement>(null);
+  const [st, setSt] = useState<{ side: 'left' | 'right' | null; top: number }>({ side: null, top: 16 });
+  useEffect(() => {
+    const measure = () => {
+      const a = left.current?.offsetHeight ?? 0; const b = right.current?.offsetHeight ?? 0;
+      if (Math.abs(a - b) < 24) { setSt({ side: null, top: 16 }); return; }
+      const short = a < b ? a : b;
+      // a short column that is still taller than the window sticks by its bottom edge instead of its top
+      setSt({ side: a < b ? 'left' : 'right', top: Math.min(16, Math.round(window.innerHeight - short - 24)) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (left.current) ro.observe(left.current);
+    if (right.current) ro.observe(right.current);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, []);
+  const style = (side: 'left' | 'right') => (st.side === side ? { position: 'sticky' as const, top: st.top, alignSelf: 'start' as const } : undefined);
+  return { left, right, style };
+}
+
 /** Step 2 — guided instructions and API token, validated against the server and kept in the Windows Credential Manager. */
 export function TokenView() {
   const { server, user, setTokenSaved, sync, signOut, toast } = useSession();
@@ -30,6 +56,8 @@ export function TokenView() {
   const [active, setActive] = useState(0);
   const [done, setDone] = useState<boolean[]>([false, false, false, false]);
   const [faq, setFaq] = useState<number | null>(null);
+  const sticky = useStickyShorter();
+  const [planBlock, setPlanBlock] = useState('');
 
   const t = token.trim();
   const checks = useMemo(() => [['Starts with rdp_', /^rdp_/i.test(t)], ['Long enough', t.length >= 28], ['Only letters and digits', /^rdp_[a-z0-9]+$/i.test(t)]] as [string, boolean][], [t]);
@@ -50,6 +78,7 @@ export function TokenView() {
     setBusy(true);
     try {
       const me = await api<Me>('GET', 'api/v1/me', undefined, t);
+      if (isPlanRefusal(me.status, apiError(me, ''))) { setPlanBlock(apiError(me, 'Your plan does not include API tokens.')); return; }
       if (me.status !== 200) { setError(me.status === 401 ? 'This token is not valid (revoked, expired or mistyped).' : apiError(me)); return; }
       if (user && me.body.id !== user.id) { setError(`This token belongs to ${me.body.email}, not to ${user.email}. Create a token while signed in as yourself.`); return; }
       if (!(me.body.scope?.scopes ?? []).includes('write')) { setError('This token is read-only. Create a "Read & write" token so your offline records can be sent.'); return; }
@@ -61,8 +90,10 @@ export function TokenView() {
     } catch (err) { setError(String(err).replace(/^Error: /, '')); } finally { setBusy(false); }
   }
 
+  if (apiTokenAccess(user) === 'no' || planBlock) return <PlansView reason={planBlock.trim() || undefined} onBack={apiTokenAccess(user) === 'no' ? undefined : () => setPlanBlock('')} />;
+
   return (
-    <div className="auth-bg">
+    <div className="auth-bg" tabIndex={-1}>
       <div className="auth-card anim-in" style={{ maxWidth: '72rem' }}>
         <div className="flex items-center justify-between"><Brand />
           <div className="flex items-center gap-3"><ol className="mini-steps" aria-label="Setup progress"><li className="done"><span><Icon name="check-lg" /></span>Sign in</li><li className="on"><span>2</span>Connect</li><li><span>3</span>Work</li></ol>
@@ -72,7 +103,7 @@ export function TokenView() {
         <div className="prog mt-4" role="progressbar" aria-valuenow={doneCount} aria-valuemin={0} aria-valuemax={4} aria-label="Instructions completed"><i style={{ width: `${(doneCount / 4) * 100}%` }} /><span>{doneCount} of 4 steps done</span></div>
 
         <div className="mt-5 grid items-start gap-5" style={{ gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)' }}>
-          <ol className="space-y-2">
+          <ol ref={sticky.left} className="space-y-2" style={sticky.style('left')}>
             {STEPS.map((s, i) => (
               <li key={s.title} className={`istep ${active === i ? 'open' : ''} ${done[i] || valid ? 'done' : ''}`}>
                 <button type="button" className="ihead" onClick={() => setActive(i)} aria-expanded={active === i}>
@@ -92,7 +123,7 @@ export function TokenView() {
             ))}
           </ol>
 
-          <div className="space-y-4">
+          <div ref={sticky.right} className="space-y-4" style={sticky.style('right')}>
             <form onSubmit={submit} className="well p-5">
               <label className="label" htmlFor="token">Your API token</label>
               <div className="field-ic"><Icon name="key" /><input id="token" type={show ? 'text' : 'password'} className="field" style={{ paddingRight: '5.4rem', fontFamily: 'ui-monospace, Consolas, monospace' }} placeholder="rdp_…" value={token} onChange={(e) => { setToken(e.target.value); setError(''); }} autoComplete="off" spellCheck={false} />
@@ -102,7 +133,7 @@ export function TokenView() {
               <button className="btn btn-primary btn-lg mt-4 w-full" disabled={busy || !valid}>{busy ? <><Icon name="arrow-repeat" className="spin" />Checking…</> : <><Icon name="cloud-arrow-down" />Save & download my projects</>}</button>
               <p className="help mt-3"><Icon name="shield-lock" className="mr-1" />Stored in the Windows Credential Manager, encrypted with your Windows account.</p>
             </form>
-            <div className="notice info"><Icon name="gem" /><span>API tokens are part of the Pro and Max plans. You can revoke a token on the website at any time; the app then asks for a new one.</span></div>
+            <div className="notice info"><Icon name="gem" /><span>API tokens are part of the Pro and Max plans. You can revoke a token on the website at any time; the app then asks for a new one. <button type="button" className="hl-link" onClick={() => setPlanBlock(' ')}>No “API tokens” section? See the plans</button></span></div>
             <div><span className="label-cap">Trouble?</span>
               <div className="space-y-2">{FAQ.map(([q, a], i) => (
                 <div key={q} className="well"><button type="button" className="faq-q" onClick={() => setFaq(faq === i ? null : i)} aria-expanded={faq === i}><span className="flex-1 text-left">{q}</span><Icon name={faq === i ? 'dash' : 'plus'} /></button>{faq === i && <p className="muted px-4 pb-3 text-sm selectable">{a}</p>}</div>))}</div></div>

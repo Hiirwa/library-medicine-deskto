@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useAsk } from '../components/Confirm';
 import { CardTitle, Empty, Icon, PageHead, Stat } from '../components/ui';
 import * as store from '../lib/db';
 import { ago, shortDate } from '../lib/time';
@@ -9,6 +9,7 @@ import { useUi } from '../providers/UiProvider';
 
 /** Everything about synchronisation in one place: what waits, what was refused, what happened. */
 export function SyncView() {
+  const ask = useAsk();
   const { online, sync, syncing, lastSync, lastResult, server, toast, settings } = useSession();
   const { openEditor, go } = useUi();
   const qc = useQueryClient();

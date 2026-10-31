@@ -5,6 +5,7 @@ import { native } from '../lib/native';
 import { syncNow, type SyncProgress, type SyncSummary } from '../lib/sync';
 import type { Me } from '../lib/types';
 import { useNetwork } from '../hooks/useNetwork';
+import { DEFAULT_SERVER } from '../lib/config';
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: Infinity, refetchOnWindowFocus: false, retry: false, networkMode: 'always' }, mutations: { networkMode: 'always' } },
@@ -49,7 +50,6 @@ export const useSession = () => {
   return c;
 };
 
-const DEFAULT_SERVER = 'https://librarymedicine.online';
 
 function Inner({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState<Stage>('loading');
@@ -142,7 +142,11 @@ function Inner({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async (opts: { keepData?: boolean } = {}) => {
     await native.secureDelete('api_token');
-    if (!opts.keepData) { await store.wipe(); await store.kvSet('settings', JSON.stringify(settings)); }
+    if (!opts.keepData) {
+      const chosen = await store.kvGet('server'); // a server the person chose themselves survives signing out
+      await store.wipe(); await store.kvSet('settings', JSON.stringify(settings));
+      if (chosen && chosen !== DEFAULT_SERVER) await store.kvSet('server', chosen);
+    }
     else { await store.kvDel('user'); }
     setUser(null);
     setStage('login');

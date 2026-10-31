@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getVersion } from '@tauri-apps/api/app';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useAsk, useSignOut } from '../components/Confirm';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CardTitle, Icon, PageHead, Switch } from '../components/ui';
 import * as store from '../lib/db';
@@ -23,13 +23,13 @@ export const SHORTCUTS: [string, string][] = [
 ];
 
 export function SettingsView() {
-  const { settings, setSetting, user, server, signOut, sync, online, toast } = useSession();
+  const ask = useAsk();
+  const { settings, setSetting, user, server, sync, online, toast } = useSession();
   const { theme, setTheme } = useUi();
   const qc = useQueryClient();
   const [version, setVersion] = useState('');
   const [ws, setWs] = useState<{ root: string; size: number } | null>(null);
   const storage = useQuery({ queryKey: ['storage'], queryFn: store.storageStats });
-  const pending = useQuery({ queryKey: ['pending'], queryFn: store.outboxCount });
   useEffect(() => {
     getVersion().then(setVersion).catch(() => setVersion('1.x'));
     Promise.all([native.workspace(), native.workspaceSize()]).then(([w, size]) => setWs({ root: w.root, size })).catch(() => {});
@@ -47,11 +47,7 @@ export function SettingsView() {
     toast('Everything will be downloaded again.');
     if (online) sync();
   }
-  async function doSignOut() {
-    const n = pending.data ?? 0;
-    if (n > 0) { toast(`${n} record${n === 1 ? ' is' : 's are'} not sent yet. Sync before signing out.`, 'error'); return; }
-    if (await ask('Sign out and remove the offline copy of your data from this computer?', { title: 'Sign out', kind: 'warning', okLabel: 'Sign out' })) await signOut();
-  }
+  const doSignOut = useSignOut();
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -139,6 +135,7 @@ export function SettingsView() {
             <button className="btn btn-sm" onClick={() => openUrl(server)}><Icon name="globe2" />Website</button>
             <button className="btn btn-sm" onClick={() => openUrl(`${server}/docs`)}><Icon name="book" />Documentation</button>
             <button className="btn btn-sm" onClick={() => openUrl(`${server}/contact`)}><Icon name="envelope" />Contact support</button>
+            <button className="btn btn-sm" onClick={() => window.dispatchEvent(new Event('lm-setup'))}><Icon name="magic" />Run setup again</button>
           </div>
         </section>
       </div>

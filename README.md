@@ -11,6 +11,9 @@ An offline-first Windows app for **librarymedicine.online**. Researchers and dat
 
 ## What's new in 1.2
 
+- **Installer:** branded Welcome/Finish pages, language choice (English, French), install for me or all users, folder and shortcut choices, a "Before you install" page, and a first-run setup (theme, sync, workspace folder). Build also publishes `SHA256SUMS.txt`. See `INSTALL.md`.
+- **Plans page:** accounts without API tokens see the plans instead of the token steps.
+
 - **Sign-in** redesigned: split layout with rotating feature highlights, show/hide password, Caps Lock hint, remembered email, server address with a connection test, setup progress.
 - **Connect this computer** is now an interactive guide: expandable steps with progress bar, live token checks, paste button, troubleshooting answers.
 - **Help** has a searchable, topic-filtered FAQ and a tour of the project areas.

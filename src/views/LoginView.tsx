@@ -5,6 +5,7 @@ import { api, apiError, native } from '../lib/native';
 import { useSession } from '../providers/AppProvider';
 import { readJson, writeJson } from '../lib/useLocal';
 import { useUi } from '../providers/UiProvider';
+import { DEFAULT_SERVER, normaliseServer } from '../lib/config';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import type { Me } from '../lib/types';
 
@@ -35,19 +36,20 @@ export function LoginView() {
   const [test, setTest] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle');
 
   useEffect(() => { if (paused) return; const t = setInterval(() => setFeat((f) => (f + 1) % FEATURES.length), 6000); return () => clearInterval(t); }, [paused]);
-  const host = (() => { try { return new URL(server || 'https://librarymedicine.online').host; } catch { return 'the website'; } })();
+  const host = (() => { try { return new URL(normaliseServer(server)).host; } catch { return 'the website'; } })();
+  const isDefault = normaliseServer(server) === DEFAULT_SERVER;
   const onKey = (e: KeyboardEvent) => setCaps(e.getModifierState?.('CapsLock') ?? false);
 
   async function testServer() {
     setTest('busy');
-    try { await native.setServer(server); const r = await native.checkNetwork(); setTest(r.online ? 'ok' : 'fail'); } catch { setTest('fail'); }
+    try { await native.setServer(normaliseServer(server)); const r = await native.checkNetwork(); setTest(r.online ? 'ok' : 'fail'); } catch { setTest('fail'); }
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(''); setBusy(true);
     try {
-      const srv = await native.setServer(server);
+      const srv = await native.setServer(normaliseServer(server));
       const r = await api<{ access_token?: string; error?: string }>('POST', 'api/v1/auth/login', { email: email.trim(), password, otp: otp.trim() || undefined }, 'none');
       if (r.status !== 200 || !r.body.access_token) {
         const msg = apiError(r, 'Sign-in failed');
@@ -68,7 +70,7 @@ export function LoginView() {
 
   const f = FEATURES[feat];
   return (
-    <div className="auth-bg">
+    <div className="auth-bg" tabIndex={-1}>
       <button type="button" className="btn btn-icon theme-fab" onClick={() => setTheme(dark ? 'light' : 'dark')} title={dark ? 'Light theme' : 'Dark theme'} aria-label="Toggle theme"><Icon name={dark ? 'sun' : 'moon-stars'} /></button>
       <div className="auth-split anim-in">
         <section className="auth-hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
@@ -100,17 +102,20 @@ export function LoginView() {
           </>)}
           <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="accent-[var(--rh-brand)]" checked={remember} onChange={(e) => setRemember(e.target.checked)} />Remember my email on this computer</label>
           {advanced && (<div className="well mt-4 p-3">
-            <label className="label" htmlFor="server">Server address</label>
-            <div className="flex gap-2"><div className="field-ic flex-1"><Icon name="globe2" /><input id="server" className="field" value={server} onChange={(e) => { setServer(e.target.value); setTest('idle'); }} placeholder="https://librarymedicine.online" /></div>
+            <div className="flex items-center gap-2"><label className="label flex-1" htmlFor="server" style={{ margin: 0 }}>Server address</label>
+              <span className={`chip ${isDefault ? 'chip-ok' : 'chip-warn'}`}><Icon name={isDefault ? 'check2' : 'pencil'} />{isDefault ? 'Default' : 'Custom'}</span></div>
+            <div className="mt-2 flex gap-2"><div className="field-ic flex-1"><Icon name="globe2" /><input id="server" className="field" value={server} onChange={(e) => { setServer(e.target.value); setTest('idle'); }} onBlur={() => setServer(normaliseServer(server))} placeholder={DEFAULT_SERVER} spellCheck={false} /></div>
               <button type="button" className="btn" onClick={testServer} disabled={test === 'busy'}>{test === 'busy' ? <Icon name="arrow-repeat" className="spin" /> : <Icon name="broadcast" />}Test</button></div>
+            {isDefault ? <p className="help mt-2">This is the standard Library Medicine server. Change it only if your organisation runs its own.</p>
+              : <button type="button" className="btn btn-sm mt-2" onClick={() => { setServer(DEFAULT_SERVER); setTest('idle'); }}><Icon name="arrow-counterclockwise" />Use the default ({DEFAULT_SERVER.replace('https://', '')})</button>}
             {test === 'ok' && <div className="help mt-2" style={{ color: 'var(--rh-success)' }}><Icon name="check-circle-fill" className="mr-1" />Server reachable</div>}
             {test === 'fail' && <div className="help mt-2" style={{ color: 'var(--rh-danger)' }}><Icon name="x-circle-fill" className="mr-1" />Cannot reach this server</div>}
           </div>)}
           {error && <div className="notice danger mt-4" role="alert"><Icon name="exclamation-octagon" /><span>{error}</span></div>}
           <button className="btn btn-primary btn-lg mt-6 w-full" disabled={busy || !email || !password}>{busy ? <><Icon name="arrow-repeat" className="spin" />Signing in…</> : <><Icon name="box-arrow-in-right" />Sign in</>}</button>
-          <div className="mt-3 flex items-center justify-between">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openUrl(server || "https://librarymedicine.online")} title="Open the website to reset your password"><Icon name="question-circle" />Reset password on the website</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdvanced((a) => !a)}><Icon name="hdd-network" />{advanced ? 'Hide server' : 'Server address'}</button>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <button type="button" className="link-btn blue" onClick={() => openUrl(normaliseServer(server))} title="Open the website to reset your password"><Icon name="key-fill" />Reset password</button>
+            <button type="button" className="link-btn teal" onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}><Icon name={advanced ? 'eye-slash-fill' : 'hdd-network-fill'} />{advanced ? 'Hide server' : 'Server address'}</button>
             <span className={`netpill ${online ? 'on' : 'off'}`}><span className="dot" />{online ? 'Online' : 'Offline'}</span>
           </div>
         </form>

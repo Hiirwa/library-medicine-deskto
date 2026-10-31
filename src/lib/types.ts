@@ -92,7 +92,12 @@ export interface SyncResponse {
   user: { id: string; name: string; email: string };
 }
 
-export interface Me { id: string; email: string; name: string; institution: string | null; scope?: { project_id: number | null; scopes: string[] } }
+export interface Me {
+  id: string; email: string; name: string; institution: string | null; scope?: { project_id: number | null; scopes: string[] };
+  /** the account's plan, when the server reports it (name or object); used to decide whether API tokens are available */
+  plan?: string | { name?: string; slug?: string; title?: string; api_tokens?: boolean } | null;
+  features?: Record<string, boolean>;
+}
 
 export interface OutboxRow {
   id: number;

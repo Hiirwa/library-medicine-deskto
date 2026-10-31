@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useAsk } from '../components/Confirm';
 import { Dropdown, Empty, Icon, PageHead, Stat, StatusChip, SyncChip } from '../components/ui';
 import * as store from '../lib/db';
 import { recordsTable, saveCsv } from '../lib/csv';
@@ -23,6 +23,7 @@ const ls = {
 
 /** The project's records as a grid: filter tiles, search, column picker, labels/codes, sorting, paging, CSV export. */
 export function DataView({ project, vars, forms }: ProjectCtx) {
+  const ask = useAsk();
   const { toast, lastSync } = useSession();
   const { openEditor, go } = useUi();
   const [searchRaw, setSearch] = useState('');

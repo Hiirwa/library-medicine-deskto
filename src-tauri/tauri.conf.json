@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Library Medicine",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "identifier": "online.librarymedicine.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -45,11 +45,21 @@
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
       "nsis": {
-        "installMode": "currentUser",
-        "languages": ["English"],
-        "displayLanguageSelector": false
+        "installMode": "both",
+        "languages": ["English", "French"],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
+        "license": "installer/license.txt",
+        "startMenuFolder": "Library Medicine"
       },
-      "wix": { "language": "en-US" }
+      "wix": {
+        "language": "en-US",
+        "license": "installer/license.rtf",
+        "bannerPath": "installer/wix-banner.bmp",
+        "dialogImagePath": "installer/wix-dialog.bmp"
+      }
     }
   },
   "plugins": {}

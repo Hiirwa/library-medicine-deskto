@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useSignOut } from './Confirm';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Brand } from './Brand';
 import { Dropdown, Icon } from './ui';
@@ -27,7 +27,7 @@ function NavItem({ icon, label, active, onClick, end, title }: { icon: string; l
 
 function Sidebar() {
   const { route, go, collapsed, currentProject } = useUi();
-  const { user, server, signOut, sync } = useSession();
+  const { user, server } = useSession();
   const projects = useProjects();
   const pending = useQuery({ queryKey: ['pending'], queryFn: store.outboxCount });
   const pid = route.page === 'project' ? route.project : currentProject;
@@ -38,14 +38,7 @@ function Sidebar() {
   const toProject = (t: ProjectTab) => project && go({ page: 'project', project: project.uuid, tab: t });
   const lock = (t: ProjectTab) => (project && !checkAccess(t, project).ok ? <Icon name="lock-fill" className="lock-ic" /> : undefined);
 
-  async function doSignOut() {
-    const n = pending.data ?? 0;
-    if (n > 0) {
-      const first = await ask(`${n} record${n === 1 ? ' has' : 's have'} not been sent yet. Signing out now would lose ${n === 1 ? 'it' : 'them'}. Sync first?`, { title: 'Unsent changes', kind: 'warning', okLabel: 'Sync first', cancelLabel: 'Sign out anyway' });
-      if (first) { await sync(); return; }
-    } else if (!(await ask('Sign out and remove the offline copy of your data from this computer?', { title: 'Sign out', kind: 'info', okLabel: 'Sign out' }))) return;
-    await signOut();
-  }
+  const doSignOut = useSignOut();
 
   return (
     <aside className={`sb ${collapsed ? 'collapsed' : ''}`} aria-label="Main navigation">
