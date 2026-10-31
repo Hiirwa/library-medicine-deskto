@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 export const Icon = ({ name, className = '' }: { name: string; className?: string }) => <i className={`bi bi-${name} ${className}`} aria-hidden="true" />;
 
@@ -63,7 +63,16 @@ export function BarChart({ data, teal, labels = 'date', height }: { data: { day:
 /** Small dropdown anchored to its button; closes on outside click and Escape. */
 export function Dropdown({ button, children, align = 'right', width, style }: { button: (open: boolean, toggle: () => void) => ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right'; width?: string; style?: React.CSSProperties }) {
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ up: boolean; maxHeight: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  // keep the whole menu inside the window: limit its height to the free space, and open upwards when there is more room above
+  useLayoutEffect(() => {
+    if (!open || !ref.current) { setPlace(null); return; }
+    const r = ref.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 60; const above = r.top - 70;
+    const up = below < 220 && above > below;
+    setPlace({ up, maxHeight: Math.max(150, Math.min(up ? above : below, 460)) });
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const down = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
@@ -75,7 +84,7 @@ export function Dropdown({ button, children, align = 'right', width, style }: { 
   return (
     <div className="relative" ref={ref}>
       {button(open, () => setOpen((o) => !o))}
-      {open && <div className="menu" style={style ?? { [align]: 0, top: 'calc(100% + .4rem)', width }}>{children(() => setOpen(false))}</div>}
+      {open && <div className="menu" style={{ ...(style ?? { [align]: 0, top: 'calc(100% + .4rem)', width }), ...(place?.up ? { top: 'auto', bottom: 'calc(100% + .4rem)' } : {}), ...(place ? { maxHeight: place.maxHeight, overflowY: 'auto' as const } : {}) }}>{children(() => setOpen(false))}</div>}
     </div>
   );
 }

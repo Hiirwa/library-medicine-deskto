@@ -1,8 +1,10 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CardTitle, Empty, Icon, PageHead } from '../components/ui';
 import { useSession } from '../providers/AppProvider';
 import { SHORTCUTS } from './SettingsView';
+import { HelpWebInfo } from '../components/HelpWebInfo';
 
 const STEPS: [string, string, string][] = [
   ['arrow-repeat', 'Sync once while online', 'Your projects, forms, variables and records are downloaded to this computer.'],
@@ -58,7 +60,7 @@ export function HelpView() {
         <div className="seg mt-4">{GUIDE.map((x) => <button key={x.id} className={guide === x.id ? 'on' : ''} onClick={() => setGuide(x.id)}><Icon name={x.icon} />{x.title}</button>)}</div>
         <div className="well mt-3 p-4" key={g.id}><b className="ink block">{g.text}</b><ul className="mt-2 space-y-2">{g.points.map((p) => <li key={p} className="flex gap-2 text-sm"><Icon name="check-circle-fill" className="mt-0.5 text-[var(--rh-teal)]" /><span>{p}</span></li>)}</ul></div>
       </section>
-      <div className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
+      <StickyColumns className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
         <section className="card p-5 anim-in">
           <CardTitle icon="question-circle" title="Questions and answers" />
           <div className="toolbar mt-3" style={{ boxShadow: 'none', padding: 0, background: 'transparent' }}>
@@ -72,14 +74,17 @@ export function HelpView() {
             {!faq.length && <Empty icon="search" title="No answer found"><span>Try other words or contact support.</span></Empty>}
           </div>
         </section>
-        <section className="card p-5 anim-in h-fit">
-          <CardTitle icon="keyboard" title="Shortcuts" />
-          <div className="mt-3 space-y-2">
-            {SHORTCUTS.map(([k, d]) => <div key={k} className="flex items-center gap-2 text-sm"><span className="flex-1">{d}</span>{k.split(' / ').map((x) => <kbd key={x}>{x}</kbd>)}</div>)}
-          </div>
-          <button className="btn mt-5 w-full" onClick={() => openUrl(`${server}/contact`)}><Icon name="envelope" />Contact support</button>
-        </section>
-      </div>
+        <div className="space-y-4">
+        <section className="card p-5 anim-in">
+            <CardTitle icon="keyboard" title="Shortcuts" />
+            <div className="mt-3 space-y-2">
+              {SHORTCUTS.map(([k, d]) => <div key={k} className="flex items-center gap-2 text-sm"><span className="flex-1">{d}</span>{k.split(' / ').map((x) => <kbd key={x}>{x}</kbd>)}</div>)}
+            </div>
+            <button className="btn mt-5 w-full" onClick={() => openUrl(`${server}/contact`)}><Icon name="envelope" />Contact support</button>
+          </section>
+          <HelpWebInfo />
+        </div>
+      </StickyColumns>
     </div>
   );
 }

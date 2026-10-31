@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Empty, Icon, PageHead, PageSkeleton } from '../components/ui';
 import { Donut, HBars, PALETTE, Scatter } from '../components/charts';
@@ -132,7 +133,7 @@ export function WorkbenchView({ project, vars }: ProjectCtx) {
   return (
     <div className="space-y-4">
       <PageHead icon="bezier2" title="Workbench" sub="Build an analysis, read the result, then pin it to a report"><WebLink project={project.uuid} tab="workbench" /></PageHead>
-      <div className="grid items-start gap-4" style={{ gridTemplateColumns: '23rem minmax(0, 1fr)' }}>
+      <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: '23rem minmax(0, 1fr)' }}>
         <aside className="card space-y-4 p-5 anim-in">
           <div><span className="label-cap">1 · Method</span>
             <div className="space-y-2">{TYPES.map((t) => (
@@ -188,7 +189,7 @@ export function WorkbenchView({ project, vars }: ProjectCtx) {
                   </div>
                 )}
         </section>
-      </div>
+      </StickyColumns>
     </div>
   );
 }

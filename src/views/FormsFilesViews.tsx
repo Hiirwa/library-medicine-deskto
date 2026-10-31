@@ -3,64 +3,127 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Empty, Icon, PageHead, Stat } from '../components/ui';
 import * as store from '../lib/db';
 import { native } from '../lib/native';
-import { bytes, plural } from '../lib/format';
+import { bytes, plural, TYPE_ICON, TYPE_LABEL } from '../lib/format';
+import { formInfo, recordSplit, daysUntil, type Split } from '../lib/formstats';
+import { ACCESS_INFO, type Access } from '../lib/sharing';
+import { checkAccess } from '../lib/access';
+import { Rich } from '../components/Rich';
+import { ago } from '../lib/time';
 import { useSession } from '../providers/AppProvider';
 import { useUi } from '../providers/UiProvider';
-import type { Form } from '../lib/types';
 import type { ProjectCtx } from './ProjectView';
 
-const questions = (f: Form) => (f.layout?.pages ?? []).reduce((n, p) => n + (p.items ?? []).filter((i) => i.type === 'variable').length + (p.sections ?? []).reduce((m, s) => m + (s.items ?? []).filter((i) => i.type === 'variable').length, 0), 0);
-const sectionsOf = (f: Form) => (f.layout?.pages ?? []).reduce((n, p) => n + Math.max(1, (p.sections ?? []).length), 0);
+/** Short date such as 12 Oct 2026. */
+const day = (iso?: string | null) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00` : iso.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? '' : 'Z')).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
+function SplitBar({ s }: { s: Split }) {
+  const parts: [string, number, string][] = [['Complete', s.complete, 'var(--rh-success)'], ['Draft', s.draft, '#64748b'], ['Flagged', s.flagged, 'var(--rh-amber)']];
+  const t = Math.max(1, s.total);
+  return (
+    <div>
+      <div className="fi-split" role="img" aria-label={parts.map(([l, n]) => `${l} ${n}`).join(', ')}>{parts.map(([l, n, c]) => n > 0 && <i key={l} style={{ width: `${(n / t) * 100}%`, background: c }} title={`${l}: ${n}`} />)}</div>
+      <div className="fi-legend">{parts.map(([l, n, c]) => <span key={l}><i style={{ background: c }} />{l} <b className="num">{n}</b></span>)}
+        {s.toSend > 0 && <span className="k-warn"><Icon name="send" />To send <b className="num">{s.toSend}</b></span>}{s.refused > 0 && <span className="k-danger"><Icon name="exclamation-octagon" />Refused <b className="num">{s.refused}</b></span>}</div>
+    </div>
+  );
+}
+
+function Stat4({ items }: { items: [string | number, string, string?][] }) {
+  return <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([v, l, t]) => <div key={l} className="well px-3 py-2" title={t}><b className="num block text-lg ink">{v}</b><span className="muted text-xs font-bold uppercase">{l}</span></div>)}</div>;
+}
 
 /** The project's data-entry forms; each one opens the record editor laid out like the form on the website. */
 export function FormsView({ project, vars, forms }: ProjectCtx) {
-  const { openEditor } = useUi();
+  const { openEditor, go } = useUi();
   const records = useQuery({ queryKey: ['records', project.uuid, ''], queryFn: () => store.listRecords(project.uuid, '') });
-  const per = useMemo(() => { const m = new Map<string, number>(); for (const r of records.data ?? []) m.set(r.form ?? '', (m.get(r.form ?? '') ?? 0) + 1); return m; }, [records.data]);
   const canAdd = project.can.add && project.status === 'active';
+  const canShare = checkAccess('sharing', project).ok;
   const [q, setQ] = useState('');
   const [openForm, setOpenForm] = useState<string | null>(null);
-  const label = (name?: string) => { const v = vars.find((x) => x.name === name); return v?.label || name || ''; };
-  const answeredPct = (f: Form) => {
-    const rs = (records.data ?? []).filter((r) => r.form === f.uuid); const names = (f.layout?.pages ?? []).flatMap((p) => [...(p.items ?? []), ...(p.sections ?? []).flatMap((s) => s.items ?? [])]).filter((i) => i.type === 'variable' && i.var).map((i) => i.var as string);
-    if (!rs.length || !names.length) return null;
-    return Math.round((rs.reduce((a, r) => a + names.filter((n) => r.data[n] !== undefined && r.data[n] !== null && r.data[n] !== '').length / names.length, 0) / rs.length) * 100);
-  };
-  const last = (f: Form) => (records.data ?? []).filter((r) => r.form === f.uuid).map((r) => r.updated_at).sort().pop();
+  const toData = (form: string) => { try { localStorage.setItem('lm_pending_filter', `${project.uuid}|all|${form}`); } catch { /* ignore */ } go({ page: 'project', project: project.uuid, tab: 'data' }); };
   const shownForms = forms.filter((f) => !q.trim() || f.title.toLowerCase().includes(q.trim().toLowerCase()));
+  const recsOf = (f: string | null) => (records.data ?? []).filter((r) => (f === null ? !r.form : r.form === f));
+  const all = useMemo(() => formInfo(null, vars), [vars]);
+  const allSplit = recordSplit(recsOf(null), all.names);
+
+  const TypeChips = ({ types }: { types: [string, number][] }) => (
+    <div className="flex flex-wrap gap-1.5">{types.slice(0, 6).map(([t, n]) => <span key={t} className="chip" title={`${n} × ${TYPE_LABEL[t] ?? t}`}><Icon name={TYPE_ICON[t] ?? 'dot'} />{TYPE_LABEL[t] ?? t} <b className="num">{n}</b></span>)}{types.length > 6 && <span className="chip">+{types.length - 6}</span>}</div>
+  );
+
   return (
     <div className="space-y-4">
-      <PageHead icon="ui-checks-grid" title="Forms" sub={`${plural(forms.length, 'form')} available offline`} />
+      <PageHead icon="ui-checks-grid" title="Forms" sub={`${plural(forms.length, 'form')} available offline · ${plural(vars.filter((v) => v.type !== 'note').length, 'question')} in the project`} />
       {forms.length > 3 && <div className="toolbar"><div className="field-ic min-w-[16rem] flex-1"><Icon name="search" /><input id="search" className="field" placeholder="Search forms…" value={q} onChange={(e) => setQ(e.target.value)} /><kbd>/</kbd></div></div>}
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }}>
-        {shownForms.map((f) => (
-          <div key={f.uuid} className="pcard anim-in" style={{ cursor: 'default' }}>
-            <div className="flex items-start gap-3">
-              <span className="pc-ic" style={{ background: 'var(--v-grad)' }}><Icon name="ui-checks-grid" /></span>
-              <div className="min-w-0"><h3>{f.title}</h3><div className="mt-1 flex flex-wrap gap-1.5"><span className={`chip ${f.status === 'published' || f.status === 'active' ? 'chip-ok' : ''}`}>{f.status || 'form'}</span></div></div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="well px-3 py-2"><b className="num block text-lg ink">{questions(f)}</b><span className="muted text-xs font-bold uppercase">Questions</span></div>
-              <div className="well px-3 py-2"><b className="num block text-lg ink">{sectionsOf(f)}</b><span className="muted text-xs font-bold uppercase">Sections</span></div>
-              <div className="well px-3 py-2"><b className="num block text-lg ink">{per.get(f.uuid) ?? 0}</b><span className="muted text-xs font-bold uppercase">Records</span></div>
-            </div>
-            {(() => { const pc = answeredPct(f); const l = last(f); return (<div className="k-teal"><div className="mb-1 flex justify-between text-sm"><span className="muted">Average answered</span><b className="num" style={{ color: 'var(--k)' }}>{pc === null ? '—' : `${pc}%`}</b></div><div className="bar"><i style={{ width: `${pc ?? 0}%` }} /></div>{l && <div className="muted mt-1 text-xs">Last entry {new Date(l).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>}</div>); })()}
-            <button className="btn btn-sm" onClick={() => setOpenForm(openForm === f.uuid ? null : f.uuid)} aria-expanded={openForm === f.uuid}><Icon name={openForm === f.uuid ? 'chevron-up' : 'list-nested'} />{openForm === f.uuid ? 'Hide structure' : 'Preview structure'}</button>
-            {openForm === f.uuid && <div className="well max-h-64 space-y-3 overflow-y-auto p-3 text-sm">{(f.layout?.pages ?? []).map((pg, pi) => (<div key={pg.id ?? pi}><b className="ink block">{pg.title || `Page ${pi + 1}`}</b>{[...(pg.items ?? []).map((i) => ({ t: undefined as string | undefined, i })), ...(pg.sections ?? []).flatMap((sec) => [{ t: sec.title, i: undefined as undefined }, ...(sec.items ?? []).map((i) => ({ t: undefined as string | undefined, i }))])].map((x, k) => x.i ? (x.i.type === 'variable' ? <div key={k} className="muted flex items-center gap-2 pl-3"><Icon name="dot" />{label(x.i.var)}</div> : null) : <div key={k} className="ink mt-1 pl-1 font-bold">{x.t}</div>)}</div>))}</div>}
-            {canAdd && <button className="btn btn-primary" onClick={() => openEditor({ project: project.uuid, record: null, form: f.uuid })}><Icon name="pencil-square" />Fill in this form</button>}
-          </div>
-        ))}
-        <div className="pcard anim-in" style={{ cursor: 'default' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(26rem, 1fr))' }}>
+        {shownForms.map((f) => {
+          const info = formInfo(f, vars); const sp = recordSplit(recsOf(f.uuid), info.names);
+          const acc = f.access ? ACCESS_INFO[f.access as Access] : null;
+          const left = daysUntil(f.settings?.close_at); const lim = f.settings?.max_responses ?? null;
+          const open = f.status === 'published' || f.status === 'active' || f.status === 'open';
+          return (
+            <section key={f.uuid} className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
+              <div className="flex items-start gap-3">
+                <span className="pc-ic" style={{ background: 'var(--v-grad)' }}><Icon name={acc?.icon ?? 'ui-checks-grid'} /></span>
+                <div className="min-w-0 flex-1"><h3 title={f.title}>{f.title}</h3>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    <span className={`chip ${open ? 'chip-ok' : f.status === 'closed' ? 'chip-warn' : ''}`}><Icon name={open ? 'broadcast' : f.status === 'closed' ? 'lock' : 'pencil'} />{f.status}</span>
+                    {acc && <span className="chip chip-brand" title={acc.text}><Icon name={acc.icon} />{acc.label}</span>}
+                    {left !== null && <span className={`chip ${left < 0 ? 'chip-danger' : left <= 7 ? 'chip-warn' : ''}`} title={`Closes on ${day(f.settings?.close_at)}`}><Icon name="calendar-event" />{left < 0 ? 'Closed' : left === 0 ? 'Closes today' : `${left} day${left === 1 ? '' : 's'} left`}</span>}
+                    {f.settings?.offline === false && <span className="chip chip-warn"><Icon name="wifi" />Online only</span>}
+                    {f.settings?.allow_edit && <span className="chip"><Icon name="pencil-square" />Editable</span>}
+                  </div></div>
+              </div>
+              {f.description && <div className="fi-desc"><Rich html={f.description} className="muted text-sm" fold={220} /></div>}
+              <Stat4 items={[[info.questions, 'Questions', `${info.calculated} calculated question(s) are filled in automatically`], [info.required, 'Required', 'Must be answered to save as complete'], [info.sections, 'Sections'], [sp.total, 'Records']]} />
+              <div><span className="label-cap">Questions by type</span><TypeChips types={info.types} /></div>
+              <div className="fi-meta"><span title="Rough estimate from the question types"><Icon name="stopwatch" />≈ {info.minutes} min to fill</span>{info.pii > 0 && <span className="k-warn" title="Questions that hold personal data"><Icon name="shield-lock" />{info.pii} personal</span>}{info.calculated > 0 && <span><Icon name="calculator" />{info.calculated} calculated</span>}{info.notes > 0 && <span><Icon name="chat-left-text" />{info.notes} note{info.notes === 1 ? '' : 's'}</span>}</div>
+              <div><div className="mb-1 flex items-center justify-between"><span className="label-cap" style={{ margin: 0 }}>Records on this computer</span>{sp.total > 0 && <span className="muted text-xs">{sp.week} in the last 7 days</span>}</div>
+                {sp.total ? <SplitBar s={sp} /> : <p className="muted text-sm">No record yet. Fill in this form to add the first one.</p>}</div>
+              {sp.total > 0 && <div className="k-teal"><div className="mb-1 flex justify-between text-sm"><span className="muted">Average answered</span><b className="num" style={{ color: 'var(--k)' }}>{sp.answeredPct === null ? '—' : `${sp.answeredPct}%`}</b></div><div className="bar"><i style={{ width: `${sp.answeredPct ?? 0}%` }} /></div></div>}
+              {lim !== null && <div className={sp.total >= lim ? 'k-warn' : 'k-brand'}><div className="mb-1 flex justify-between text-sm"><span className="muted">Response limit</span><b className="num" style={{ color: 'var(--k)' }}>{sp.total} / {lim}</b></div><div className="bar"><i style={{ width: `${Math.min(100, (sp.total / Math.max(1, lim)) * 100)}%` }} /></div></div>}
+              <div className="fi-meta muted">{f.updated_at && <span><Icon name="clock-history" />Form updated {day(f.updated_at)}</span>}{sp.last && <span><Icon name="pencil" />Last entry {ago(sp.last)}</span>}{sp.first && <span><Icon name="flag" />First entry {day(sp.first)}</span>}</div>
+              <button className="btn btn-sm" onClick={() => setOpenForm(openForm === f.uuid ? null : f.uuid)} aria-expanded={openForm === f.uuid}><Icon name={openForm === f.uuid ? 'chevron-up' : 'list-nested'} />{openForm === f.uuid ? 'Hide structure' : 'Preview structure'}</button>
+              {openForm === f.uuid && (
+                <div className="well max-h-72 space-y-3 overflow-y-auto p-3 text-sm">
+                  {(f.layout?.pages ?? []).map((pg, pi) => {
+                    const groups = [...((pg.items ?? []).length ? [{ id: 'p', title: undefined as string | undefined, items: pg.items ?? [] }] : []), ...(pg.sections ?? []).map((x) => ({ id: x.id, title: x.title, items: x.items ?? [] }))];
+                    return (
+                      <div key={pg.id ?? pi}><b className="ink block">{pg.title || `Page ${pi + 1}`}</b>
+                        {groups.map((g, gi) => (
+                          <div key={g.id ?? gi}>{g.title && <div className="ink mt-1 pl-1 font-bold">{g.title}</div>}
+                            {g.items.map((i, k) => { if (i.type !== 'variable') return i.text ? <div key={k} className="muted pl-3 text-xs italic">{i.text}</div> : null; const v = vars.find((x) => x.name === i.var); return v ? <div key={k} className="muted flex items-center gap-2 pl-3"><Icon name={TYPE_ICON[v.type] ?? 'dot'} /><span className="flex-1 truncate" title={v.name}>{v.label || v.name}</span>{v.required && <span style={{ color: 'var(--rh-danger)' }} title="Required">*</span>}{v.is_pii && <Icon name="shield-lock" />}</div> : null; })}</div>
+                        ))}</div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-auto flex flex-wrap items-center gap-2">
+                {canAdd && <button className="btn btn-primary flex-1" onClick={() => openEditor({ project: project.uuid, record: null, form: f.uuid })}><Icon name="pencil-square" />Fill in this form</button>}
+                <button className="btn" onClick={() => toData(f.uuid)} title="Show this form's records"><Icon name="table" />Data</button>
+                {canShare && <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'sharing' })} title="Public link, QR code and who can submit"><Icon name="share" />Share</button>}
+              </div>
+            </section>
+          );
+        })}
+
+        <section className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
           <div className="flex items-start gap-3">
             <span className="pc-ic"><Icon name="list-ul" /></span>
-            <div className="min-w-0"><h3>All variables</h3><p className="muted mt-1 text-sm">Manual entry with every question of the project, in codebook order.</p></div>
+            <div className="min-w-0 flex-1"><h3>All variables</h3><p className="muted mt-1 text-sm">Manual entry with every question of the project, in codebook order.</p>
+              <div className="mt-1 flex flex-wrap gap-1.5"><span className="chip chip-teal"><Icon name="journal-text" />Codebook v{project.schema_version}</span></div></div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="well px-3 py-2"><b className="num block text-lg ink">{vars.filter((v) => v.type !== 'calculated').length}</b><span className="muted text-xs font-bold uppercase">Questions</span></div>
-            <div className="well px-3 py-2"><b className="num block text-lg ink">{per.get('') ?? 0}</b><span className="muted text-xs font-bold uppercase">Records</span></div>
+          <Stat4 items={[[all.questions, 'Questions'], [all.required, 'Required'], [all.calculated, 'Calculated'], [allSplit.total, 'Records']]} />
+          <div><span className="label-cap">Questions by type</span><TypeChips types={all.types} /></div>
+          <div className="fi-meta"><span><Icon name="stopwatch" />≈ {all.minutes} min to fill everything</span>{all.pii > 0 && <span className="k-warn"><Icon name="shield-lock" />{all.pii} personal</span>}</div>
+          <div><span className="label-cap">Records entered manually</span>{allSplit.total ? <SplitBar s={allSplit} /> : <p className="muted text-sm">No manual record yet.</p>}</div>
+          {allSplit.total > 0 && <div className="k-teal"><div className="mb-1 flex justify-between text-sm"><span className="muted">Average answered</span><b className="num" style={{ color: 'var(--k)' }}>{allSplit.answeredPct === null ? '—' : `${allSplit.answeredPct}%`}</b></div><div className="bar"><i style={{ width: `${allSplit.answeredPct ?? 0}%` }} /></div></div>}
+          <div className="fi-meta muted">{allSplit.last && <span><Icon name="pencil" />Last entry {ago(allSplit.last)}</span>}<span><Icon name="info-circle" />Use it when no form fits, or to see every question.</span></div>
+          <div className="mt-auto flex flex-wrap items-center gap-2">
+            {canAdd && <button className="btn btn-primary flex-1" onClick={() => openEditor({ project: project.uuid, record: null, form: '__all' })}><Icon name="pencil-square" />Manual entry</button>}
+            <button className="btn" onClick={() => toData('__none')}><Icon name="table" />Data</button>
+            <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'variables' })}><Icon name="diagram-3" />Codebook</button>
           </div>
-          {canAdd && <button className="btn" onClick={() => openEditor({ project: project.uuid, record: null, form: '__all' })}><Icon name="pencil-square" />Manual entry</button>}
-        </div>
+        </section>
       </div>
       {!canAdd && <div className="notice info"><Icon name="info-circle" /><span>{project.status !== 'active' ? 'This project is archived, so no new records can be added.' : 'Your role in this project cannot add records.'}</span></div>}
     </div>

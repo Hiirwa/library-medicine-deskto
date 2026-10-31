@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState } from 'react';
 import { Empty, Icon, PageHead, Stat } from '../components/ui';
 import { buildTable, recordsJson, saveFile, toCsv, toExcelXml, toHtmlTable, toJsonl, toSql, toTsv, toXml } from '../lib/csv';
@@ -7,6 +8,7 @@ import { useRecords } from '../lib/hooks';
 import { useLocal } from '../lib/useLocal';
 import { ago } from '../lib/time';
 import { useSession } from '../providers/AppProvider';
+import { ExportWebInfo } from '../components/ExportWebInfo';
 import type { ProjectCtx } from './ProjectView';
 
 type Ext = 'csv' | 'tsv' | 'json' | 'jsonl' | 'xml' | 'html' | 'sql';
@@ -97,7 +99,7 @@ export function ExportView({ project, vars }: ProjectCtx) {
         <Stat icon="send" value={(records.data ?? []).filter((r) => r.dirty).length} label="Not yet synced" tone="k-warn" />
       </div>
       {hidePii && <div className="notice info"><Icon name="shield-lock" /><span>Personal-data questions are excluded because your role cannot see them.</span></div>}
-      <div className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
+      <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
         <div className="space-y-4">
           <section className="card p-5 anim-in"><span className="label-cap">1 · Format</span>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))' }}>{FORMATS.map((f) => (
@@ -141,8 +143,9 @@ export function ExportView({ project, vars }: ProjectCtx) {
               : <p className="muted text-sm">Files you export appear here.</p>}
             {hist.length > 0 && <button className="btn btn-sm mt-3" onClick={() => setHist([])}><Icon name="trash3" />Clear list</button>}
           </section>
+          <ExportWebInfo project={project.uuid} schemaVersion={project.schema_version} localRecords={records.data?.length ?? 0} toSend={(records.data ?? []).filter((r) => r.dirty && !r.sync_error).length} />
         </aside>
-      </div>
+      </StickyColumns>
     </div>
   );
 }

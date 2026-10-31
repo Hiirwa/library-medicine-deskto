@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Empty, Icon, PageHead, PageSkeleton, Stat } from '../components/ui';
 import { HBars, HistogramChart } from '../components/charts';
@@ -83,7 +84,7 @@ export function StatisticsView({ project, vars }: ProjectCtx) {
         <Stat icon="exclamation-triangle" value={gaps} label="With over 20% missing" tone={gaps ? 'k-warn' : 'k-muted'} />
       </div>
       {!recs.length ? <div className="card"><Empty icon="calculator" title="Nothing to analyse yet"><span>Statistics appear as soon as records exist on this computer.</span></Empty></div> : (
-        <div className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 25rem' }}>
+        <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 25rem' }}>
           <div className="space-y-3">
             <div className="toolbar">
               <div className="field-ic min-w-[14rem] flex-1"><Icon name="search" /><input id="search" className="field" placeholder="Search variables…" value={qRaw} onChange={(e) => setQ(e.target.value)} /><kbd>/</kbd></div>
@@ -111,11 +112,11 @@ export function StatisticsView({ project, vars }: ProjectCtx) {
               {list.length > 0 && <p className="help px-4 py-2"><Icon name="keyboard" className="mr-1" />Click a row, then use ↑ ↓ to move through the variables.</p>}
             </div>
           </div>
-          <aside className="card p-5 anim-in sticky top-0">
+          <aside className="card p-5 anim-in">
             {current ? <Profile row={current} recs={recs} onPin={(p) => { const n = addPin(project.uuid, p); toast(`Pinned to the report (${n} pinned).`); }} />
               : <Empty icon="cursor" title="Select a variable"><span>Click a row to see its distribution, quartiles and frequencies.</span></Empty>}
           </aside>
-        </div>
+        </StickyColumns>
       )}
     </div>
   );

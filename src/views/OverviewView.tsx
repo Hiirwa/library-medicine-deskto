@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, CardTitle, Icon, Stat, StatusChip } from '../components/ui';
@@ -81,7 +82,7 @@ export function OverviewView({ project, vars, forms }: ProjectCtx) {
         <Stat icon="diagram-3" value={vars.length} label="Variables" onClick={() => to('variables')} />
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 24rem' }}>
+      <StickyColumns className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 24rem' }}>
         <section className="card p-5 anim-in">
           <CardTitle icon="bar-chart-line" title="Submissions" sub={<><b className="ink">{plural(sum, 'record')}</b> in the last {range} days</>}>
             <div className="seg light">{([7, 14, 30] as const).map((r) => <button key={r} className={range === r ? 'on' : ''} onClick={() => setRange(r)}>{r}d</button>)}</div>
@@ -93,7 +94,7 @@ export function OverviewView({ project, vars, forms }: ProjectCtx) {
           <div className="mt-3 flex items-center gap-4"><Ring value={quality} label="Data quality" size={92} tone={quality >= 80 ? 'var(--rh-success)' : quality >= 60 ? 'var(--rh-amber)' : 'var(--rh-danger)'} />
             <ul className="min-w-0 flex-1 space-y-1.5 text-sm">{checks.map(([ok, t, act]) => <li key={t}><button type="button" className="hl" onClick={act}><Icon name={ok ? 'check-circle-fill' : 'exclamation-circle-fill'} className={ok ? 'text-[var(--rh-success)]' : 'text-[var(--rh-amber)]'} /><span className="flex-1 text-left">{t}</span><Icon name="chevron-right" className="muted" /></button></li>)}</ul></div>
         </section>
-      </div>
+      </StickyColumns>
 
       <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))' }}>
         {GROUPS.map((g) => (
@@ -104,7 +105,7 @@ export function OverviewView({ project, vars, forms }: ProjectCtx) {
         ))}
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      <StickyColumns className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
         <section className="card p-5 anim-in">
           <CardTitle icon="clipboard-data" tone="k-teal" title="Completeness" sub="Share of records that answered" />
           <div className="mt-4 space-y-3">
@@ -126,7 +127,7 @@ export function OverviewView({ project, vars, forms }: ProjectCtx) {
             {!(records.data ?? []).length && <p className="muted py-6 text-center text-sm">Nothing yet.</p>}
           </div>
         </section>
-      </div>
+      </StickyColumns>
     </div>
   );
 }

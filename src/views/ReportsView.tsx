@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState } from 'react';
 import { Empty, Icon, PageHead, Switch } from '../components/ui';
 import { saveFile } from '../lib/csv';
@@ -54,7 +55,7 @@ export function ReportsView({ project, vars }: ProjectCtx) {
         <button className="btn" onClick={() => save('html')}><Icon name="filetype-html" />HTML</button>
         <button className="btn btn-primary" onClick={() => window.print()}><Icon name="printer" />Print / PDF</button>
       </PageHead></div>
-      <div className="grid items-start gap-4" style={{ gridTemplateColumns: '21rem minmax(0, 1fr)' }}>
+      <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: '21rem minmax(0, 1fr)' }}>
         <aside className="card no-print space-y-4 p-5 anim-in">
           <div><span className="label-cap">Template</span>
             <div className="space-y-2">{TEMPLATES.map((t) => (
@@ -81,7 +82,7 @@ export function ReportsView({ project, vars }: ProjectCtx) {
             <section key={s.id} id={`rp-${s.id}`}><h2><Icon name={SECTION_LIST.find((x) => x[0] === s.id)?.[1] ?? 'chat-left-text'} />{s.title}</h2>{s.blocks.map((b, i) => <BlockView key={i} b={b} />)}</section>
           )) : <Empty icon="file-earmark" title="No section selected"><span>Switch on at least one section.</span></Empty>}
         </article>
-      </div>
+      </StickyColumns>
     </div>
   );
 }

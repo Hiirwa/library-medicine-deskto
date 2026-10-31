@@ -29,7 +29,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
   const { openEditor, go } = useUi();
   const [searchRaw, setSearch] = useState('');
   const search = useDeferredValue(searchRaw);
-  const [filter, setFilter] = useState<Filter>(() => { const p = ls.get('lm_pending_filter') ?? ''; if (p.startsWith(`${project.uuid}|`)) { ls.set('lm_pending_filter', ''); return (p.split('|')[1] || 'all') as Filter; } return 'all'; });
+  const [filter, setFilter] = useState<Filter>(() => { const p = ls.get('lm_pending_filter') ?? ''; if (p.startsWith(`${project.uuid}|`)) return (p.split('|')[1] || 'all') as Filter; return 'all'; });
   const [views, setViews] = useLocal<{ name: string; filter: Filter; search: string; sort: SortKey; range: string; labels: boolean; cols: string[] }[]>(`lm_views_${project.uuid}`, []);
   const [viewName, setViewName] = useState('');
   const [labels, setLabels] = useState(true);
@@ -38,6 +38,8 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [range, setRange] = useState<'any' | 'today' | '7' | '30'>('any');
+  useEffect(() => { ls.set('lm_pending_filter', ''); }, []); // the filter hand-over from the Overview / Forms pages is used once
+  const [formFilter, setFormFilter] = useState<string>(() => { const p = (ls.get('lm_pending_filter') ?? '').split('|'); return p[0] === project.uuid && p[2] ? p[2] : ''; });
   const qc = useQueryClient();
   const hidePii = !project.can.pii;
   const visibleVars = useMemo(() => vars.filter((v) => !['note'].includes(v.type) && !(hidePii && v.is_pii)), [vars, hidePii]);
@@ -47,7 +49,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
     return visibleVars.filter((v) => !['file', 'textarea'].includes(v.type)).slice(0, 6).map((v) => v.name);
   });
   useEffect(() => { ls.set(colKey, JSON.stringify(cols)); }, [cols, colKey]);
-  useEffect(() => { setPage(0); }, [search, filter, sort, range]);
+  useEffect(() => { setPage(0); }, [search, filter, sort, range, formFilter]);
 
   const all = useQuery({ queryKey: ['records', project.uuid, ''], queryFn: () => store.listRecords(project.uuid, '') });
   const byName = useMemo(() => new Map(vars.map((v) => [v.name, v])), [vars]);
@@ -70,6 +72,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
     if (filter === 'toSend') r = r.filter((x) => x.dirty);
     if (filter === 'refused') r = r.filter((x) => x.sync_error);
     if (filter === 'today') r = r.filter((x) => x.created_at >= startToday);
+    if (formFilter) r = r.filter((x) => (formFilter === '__none' ? !x.form : x.form === formFilter));
     if (range !== 'any') { const since = range === 'today' ? startToday : new Date(Date.now() - Number(range) * 86400000).toISOString(); r = r.filter((x) => x.created_at >= since); }
     const q = search.trim().toLowerCase();
     if (q) {
@@ -97,7 +100,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
       if (B === '') return -1;
       return (A > B ? 1 : -1) * sort.dir;
     });
-  }, [all.data, filter, search, sort, labels, byName, visibleVars, startToday, range]);
+  }, [all.data, filter, search, sort, labels, byName, visibleVars, startToday, range, formFilter]);
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const view = rows.slice(page * PAGE, page * PAGE + PAGE);
@@ -205,8 +208,9 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
           <button className={!labels ? 'on' : ''} onClick={() => setLabels(false)}><Icon name="123" />Codes</button>
         </div>
         <button className="btn btn-icon" onClick={() => { setCompact((c) => { ls.set('lm_compact', c ? '0' : '1'); return !c; }); }} title={compact ? 'Comfortable rows' : 'Compact rows'}><Icon name={compact ? 'arrows-expand' : 'arrows-collapse'} /></button>
+        {forms.length > 0 && <select className="field w-52" value={formFilter} onChange={(e) => setFormFilter(e.target.value)} aria-label="Form"><option value="">All forms</option>{forms.map((f) => <option key={f.uuid} value={f.uuid}>{f.title}</option>)}<option value="__none">All variables (manual)</option></select>}
         <select className="field w-44" value={range} onChange={(e) => setRange(e.target.value as typeof range)} aria-label="Created"><option value="any">Any date</option><option value="today">Created today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
-        <button className="btn" onClick={() => { setSearch(''); setFilter('all'); setRange('any'); setSort({ key: '_updated', dir: -1 }); }}><Icon name="funnel" />Reset</button>
+        <button className="btn" onClick={() => { setSearch(''); setFilter('all'); setRange('any'); setFormFilter(''); setSort({ key: '_updated', dir: -1 }); }}><Icon name="funnel" />Reset</button>
       </div>
 
       {selected.size > 0 && (

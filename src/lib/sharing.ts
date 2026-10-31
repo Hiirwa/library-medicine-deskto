@@ -34,7 +34,7 @@ export interface Overview {
 
 export type Result<T> = { ok: true; data: T } | { ok: false; status: number; error: string; upgrade?: string; unsupported?: boolean };
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<Result<T>> {
+export async function call<T>(method: string, path: string, body?: unknown): Promise<Result<T>> {
   try {
     const r = await api<T>(method, path, body);
     if (r.status >= 200 && r.status < 300) return { ok: true, data: r.body };

@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -5,6 +6,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { Empty, Icon, PageHead, PageSkeleton, Switch } from '../components/ui';
 import { useAsk } from '../components/Confirm';
 import { Qr, qrSvg } from '../components/Qr';
+import { Ring } from '../components/charts';
 import { WebLink } from '../components/WebLink';
 import { saveFile } from '../lib/csv';
 import { initials, plural } from '../lib/format';
@@ -97,7 +99,12 @@ export function SharingView({ project }: ProjectCtx) {
         </div>
       </div>
 
-      {tab === 'forms' && <FormsTab o={o} project={project.uuid} canWrite={canWrite} onEdit={setEditing} onQr={setQrFor} run={run} />}
+      {tab === 'forms' && (
+        <StickyColumns className="sh-split">
+          <FormsTab o={o} project={project.uuid} canWrite={canWrite} onEdit={setEditing} onQr={setQrFor} run={run} />
+          <SharingAside o={o} canWrite={canWrite} setTab={setTab} onEdit={setEditing} />
+        </StickyColumns>
+      )}
       {tab === 'team' && <TeamTab o={o} project={project.uuid} canWrite={canWrite} mayChange={mayChange} busy={busy} run={run} onAssign={setAssigning} link={link} setLink={setLink} ask={ask} />}
       {tab === 'invites' && <InvitesTab o={o} project={project.uuid} canWrite={canWrite} busy={busy} run={run} link={link} setLink={setLink} ask={ask} />}
 
@@ -167,6 +174,72 @@ function FormsTab({ o, project, canWrite, onEdit, onQr, run }: { o: Overview; pr
         );
       })}
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ side cards: overview, plan, team
+function SharingAside({ o, canWrite, setTab, onEdit }: { o: Overview; canWrite: boolean; setTab: (t: Tab) => void; onEdit: (f: SharingForm) => void }) {
+  const { toast } = useSession();
+  const others = o.members.filter((m) => !m.is_me);
+  const open = o.forms.filter((f) => f.status === 'open');
+  const pub = o.forms.filter((f) => f.access === 'public' && f.public_url);
+  const assignedForms = o.forms.filter((f) => f.access === 'assigned');
+  const collectors = o.members.filter((m) => m.role === 'collector');
+  const withClose = o.forms.filter((f) => f.settings.close_at);
+  const soon = o.invitations.filter((i) => new Date(i.expires_at.replace(' ', 'T') + 'Z').getTime() - Date.now() < 2 * 86400000).length;
+  const firstDraftOrPrivate = o.forms.find((f) => f.access !== 'public') ?? o.forms[0];
+
+  type Row = { ok: boolean; locked?: boolean; icon: string; title: string; sub: string; act?: [string, () => void] };
+  const rows: Row[] = [
+    { ok: open.length > 0, icon: 'broadcast', title: `${open.length} of ${plural(o.forms.length, 'form')} open`, sub: open.length ? 'People can submit responses now.' : 'Open a form so people can respond.' },
+    o.features.public_form
+      ? { ok: pub.length > 0, icon: 'globe2', title: pub.length ? `${plural(pub.length, 'public link')} active` : 'No public link yet', sub: pub.length ? 'Share the link or QR code.' : 'Let anyone respond without an account.', act: !pub.length && firstDraftOrPrivate && canWrite ? ['Create', () => onEdit({ ...firstDraftOrPrivate, access: 'public' })] : undefined }
+      : { ok: false, locked: true, icon: 'globe2', title: 'Public links', sub: `Not included in the ${o.plan.name}.` },
+    { ok: others.length > 0, icon: 'people', title: others.length ? `${plural(others.length, 'colleague')} on the team` : 'You are the only member', sub: others.length ? 'Roles decide who sees and changes what.' : 'Invite colleagues to collect or review data.', act: !others.length && canWrite ? ['Invite', () => setTab('team')] : undefined },
+    { ok: assignedForms.length === 0 || collectors.some((c) => c.forms.length > 0), icon: 'person-check', title: assignedForms.length ? (collectors.some((c) => c.forms.length > 0) ? 'Collectors have forms assigned' : 'No collector can fill “assigned” forms') : 'No assigned-only forms', sub: assignedForms.length ? 'Assign forms to your data collectors.' : 'Every form is open to more people.', act: assignedForms.length && !collectors.some((c) => c.forms.length > 0) && canWrite ? ['Assign', () => setTab('team')] : undefined },
+    o.features.auto_close
+      ? { ok: withClose.length > 0, icon: 'calendar-event', title: withClose.length ? `${plural(withClose.length, 'form')} close automatically` : 'No closing date set', sub: 'A closing date stops late responses by itself.' }
+      : { ok: false, locked: true, icon: 'calendar-event', title: 'Automatic closing date', sub: `Not included in the ${o.plan.name}.` },
+    { ok: o.invitations.length === 0 || soon === 0, icon: 'envelope-paper', title: o.invitations.length ? `${plural(o.invitations.length, 'pending invitation')}${soon ? ` · ${soon} expiring soon` : ''}` : 'No pending invitation', sub: o.invitations.length ? 'Resend or withdraw them in Invitations.' : 'Everyone you invited has answered.', act: o.invitations.length ? ['View', () => setTab('invites')] : undefined },
+  ];
+  const scored = rows.filter((r) => !r.locked); const done = scored.filter((r) => r.ok).length;
+
+  const feats: [boolean, string, string][] = [
+    [o.features.public_form, 'globe2', 'Public form links and QR codes'], [o.features.auto_close, 'calendar-event', 'Closing date'], [o.features.offline, 'wifi-off', 'Offline forms'],
+    [o.features.submit_again, 'arrow-repeat', '“Submit another response”'], [o.features.edit_response, 'pencil-square', 'Respondents can edit their answers'],
+  ];
+  const full = feats.every((f) => f[0]);
+  const top = [...o.members].sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role)).slice(0, 5);
+
+  return (
+    <aside className="sh-aside">
+      <section className="card p-5 anim-in">
+        <div className="flex items-center gap-3"><Ring value={(done / Math.max(1, scored.length)) * 100} label="" size={78} tone="var(--rh-teal)" /><div className="min-w-0 flex-1"><h3 className="text-lg">Sharing at a glance</h3><p className="muted text-sm">{done} of {scored.length} things set up</p></div></div>
+        <ul className="sa-list">{rows.map((r) => (
+          <li key={r.title} className={r.locked ? 'locked' : r.ok ? 'ok' : ''}>
+            <span className="sa-ic"><Icon name={r.locked ? 'lock-fill' : r.ok ? 'check-lg' : r.icon} /></span>
+            <span className="min-w-0 flex-1"><b className="ink block text-sm">{r.title}</b><small className="muted">{r.sub}</small></span>
+            {r.act && <button className="btn btn-sm" onClick={r.act[1]}>{r.act[0]}</button>}
+          </li>))}</ul>
+      </section>
+
+      <section className="card p-5 anim-in">
+        <div className="flex items-center gap-3"><span className="pk-ic"><Icon name="gem" /></span><div className="min-w-0 flex-1"><h3 className="text-lg">{o.plan.name}</h3><p className="muted text-sm">{full ? 'Everything for sharing is included.' : 'What your plan includes'}</p></div></div>
+        <ul className="sa-feats">{feats.map(([ok, ic, t]) => <li key={t} className={ok ? '' : 'off'}><Icon name={ok ? 'check-circle-fill' : 'x-circle-fill'} className={ok ? 'text-[var(--rh-success)]' : 'text-[var(--rh-muted)]'} /><Icon name={ic} /><span>{t}</span></li>)}</ul>
+        <div className="sa-caps">
+          {o.caps.max_responses_max !== null && <span className="chip"><Icon name="database" />Up to {o.caps.max_responses_max.toLocaleString()} records</span>}
+          {o.caps.close_max && <span className="chip"><Icon name="calendar-range" />Closes by {o.caps.close_max}</span>}
+        </div>
+        {!full && <button className="btn btn-primary w-full mt-3" onClick={() => openUrl(o.plan.upgrade_url).catch(() => toast('Could not open the website.', 'error'))}><Icon name="rocket-takeoff" />See plans &amp; upgrade</button>}
+      </section>
+
+      <section className="card p-5 anim-in">
+        <div className="flex items-center gap-3"><span className="pk-ic"><Icon name="people" /></span><div className="min-w-0 flex-1"><h3 className="text-lg">Team</h3><p className="muted text-sm">{plural(o.members.length, 'member')}{o.invitations.length ? ` · ${plural(o.invitations.length, 'invitation')} pending` : ''}</p></div></div>
+        <ul className="sa-team">{top.map((m) => <li key={m.id}><span className="avatar">{initials(m.name || m.email)}</span><span className="min-w-0 flex-1"><b className="ink block truncate text-sm">{m.name}{m.is_me && <span className="muted font-medium"> (you)</span>}</b><small className="muted block truncate">{m.last_login_at ? `Active ${ago(m.last_login_at)}` : 'Not signed in yet'}</small></span><span className="chip chip-brand"><Icon name={ROLE_INFO[m.role].icon} />{ROLE_INFO[m.role].label}</span></li>)}</ul>
+        {o.members.length > top.length && <p className="muted mt-1 text-sm">+{o.members.length - top.length} more</p>}
+        <div className="mt-3 flex gap-2"><button className="btn btn-sm flex-1" onClick={() => setTab('team')}><Icon name="people" />Manage team</button>{canWrite && <button className="btn btn-sm btn-primary flex-1" onClick={() => setTab('team')}><Icon name="person-plus" />Invite</button>}</div>
+      </section>
+    </aside>
   );
 }
 

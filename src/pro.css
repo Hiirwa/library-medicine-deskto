@@ -352,3 +352,52 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
 .qr-wrap { display: grid; place-items: center; padding: 1rem; border-radius: 1.2rem; background: #fff; box-shadow: var(--rh-sh-2); justify-self: center; }
 .qr svg { width: 100%; height: 100%; display: block; }
 .notice.ok .selectable { color: var(--rh-ink); }
+
+/* form cards */
+.fi-card { display: flex; flex-direction: column; gap: .85rem; padding: 1.25rem 1.3rem; }
+.fi-card h3 { font-size: 1.12rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fi-desc { padding: .6rem .8rem; border-radius: .9rem; background: var(--rh-surface-2); box-shadow: var(--rh-sh-1); }
+.fi-meta { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: .84rem; color: var(--rh-muted); }
+.fi-meta span { display: inline-flex; align-items: center; gap: .35rem; }
+.fi-split { display: flex; height: .8rem; border-radius: 999px; overflow: hidden; background: var(--rh-surface-3); box-shadow: inset 0 1px 3px rgba(15, 23, 42, .2); }
+.fi-split i { display: block; height: 100%; }
+.fi-legend { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin-top: .45rem; font-size: .84rem; color: var(--rh-muted); }
+.fi-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.fi-legend i { width: .65rem; height: .65rem; border-radius: .2rem; display: inline-block; box-shadow: 0 1px 2px rgba(15, 23, 42, .3); }
+
+/* sharing: side cards */
+.sh-split { display: grid; grid-template-columns: minmax(0, 1fr) 23rem; gap: 1rem; align-items: start; }
+.sh-split > div:first-child { min-width: 0; }
+.sh-aside { display: grid; gap: 1rem; }
+@media (max-width: 1180px) { .sh-split { grid-template-columns: minmax(0, 1fr); } .sh-aside { position: static; } }
+.sa-list, .sa-feats, .sa-team { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .55rem; }
+.sa-list li { display: flex; align-items: center; gap: .7rem; padding: .55rem .7rem; border-radius: .95rem; background: var(--rh-surface-2); box-shadow: var(--rh-sh-1); }
+.sa-ic { width: 1.9rem; height: 1.9rem; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; background: var(--rh-surface-3); color: var(--rh-muted); box-shadow: var(--rh-sh-1); }
+.sa-list li.ok .sa-ic { background: var(--rh-success); color: #fff; text-shadow: var(--ts-inv); }
+.sa-list li.locked .sa-ic { background: color-mix(in srgb, var(--rh-amber) 22%, var(--rh-surface-3)); color: var(--rh-warning); }
+.sa-list li.locked { opacity: .85; }
+.sa-feats li { display: flex; align-items: center; gap: .55rem; font-size: .92rem; }
+.sa-feats li.off { color: var(--rh-muted); }
+.sa-caps { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
+.sa-team li { display: flex; align-items: center; gap: .7rem; }
+
+/* ------------------------------------------------------------------ dropdown menus stay on top
+   Cause of the bug: .anim-in kept its animation "filled" after it ended, so every animated card and header stayed a separate
+   stacking layer, and icons of later cards (which carry a drop-shadow filter) were painted over an open menu.
+   Fix 1: animations no longer leave an effect behind. Fix 2: whatever holds an open menu is raised above what follows it. */
+.anim-in, .menu { animation-fill-mode: backwards; }
+.page > :has(.menu), .page-head:has(.menu), .toolbar:has(.menu), .card:has(.menu), .tbl-wrap:has(.menu), .stat:has(.menu), .well:has(.menu), .sh-card:has(.menu), .pcard:has(.menu) { position: relative; z-index: 60; }
+.menu { z-index: 70; }
+
+/* export page: cards from the website */
+.ew-card { padding: 1.2rem 1.3rem; display: grid; gap: .85rem; }
+.ew-facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .8rem; font-size: .9rem; color: var(--rh-muted); }
+.ew-facts li { display: flex; align-items: center; gap: .45rem; }
+.ew-facts b { color: var(--rh-ink); }
+.ew-formats, .ew-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ew-formats li, .ew-hist li { display: flex; align-items: center; gap: .7rem; padding: .5rem .65rem; border-radius: .95rem; background: var(--rh-surface-2); box-shadow: var(--rh-sh-1); }
+.ew-formats li.off { opacity: .7; }
+.ew-feats { display: grid; gap: .5rem; font-size: .9rem; }
+.ew-feats > div { display: flex; align-items: center; gap: .55rem; }
+.ew-feats > div span { flex: 1; }
+.ew-feats > div.off { color: var(--rh-muted); }

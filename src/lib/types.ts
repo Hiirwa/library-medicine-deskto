@@ -20,7 +20,12 @@ export interface FormLayout {
   pages: { id: string; title?: string; description?: string; items?: FormLayoutItem[]; sections?: { id: string; title?: string; description?: string; items?: FormLayoutItem[] }[] }[];
 }
 
-export interface Form { uuid: string; project: string; title: string; status: string; layout: FormLayout }
+export interface Form {
+  uuid: string; project: string; title: string; status: string; layout: FormLayout;
+  /** sent by servers that have the 1.2 update: description, who can submit, last change and the sharing limits */
+  description?: string | null; access?: 'public' | 'authenticated' | 'assigned' | string; updated_at?: string | null;
+  settings?: { close_at?: string | null; max_responses?: number | null; offline?: boolean; allow_edit?: boolean; allow_multiple?: boolean } | null;
+}
 
 export interface Variable {
   name: string;

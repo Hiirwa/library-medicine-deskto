@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Empty, Icon, PageHead, Stat } from '../components/ui';
@@ -214,7 +215,7 @@ export function ImportView({ project, vars, forms }: ProjectCtx) {
       )}
 
       {step === 2 && (
-        <div className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 21rem' }}>
+        <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr) 21rem' }}>
           <section className="card p-5 anim-in">
             <div className="flex items-center gap-3"><span className="ic-sm"><Icon name="file-earmark-check" /></span><div className="min-w-0 flex-1"><b className="ink block truncate">{fileName}</b><span className="muted text-sm">{plural(body.length, 'row')} · {plural(head.length, 'column')} · {plural(mapped, 'column')} matched</span></div><button className="btn btn-sm" onClick={reset}><Icon name="arrow-left" />Other file</button></div>
             {loaded && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="chip chip-brand"><Icon name="file-earmark-check" />{loaded.format}</span>{loaded.sheets.length > 1 && <><span className="muted text-sm">Sheet</span><div className="seg">{loaded.sheets.map((sh, i) => <button key={sh.name} className={sheetIdx === i ? 'on' : ''} onClick={() => openSheet(loaded, i, fileName)}>{sh.name}</button>)}</div></>}{remembered && <span className="chip chip-ok" title="You used this column layout before"><Icon name="magic" />Matching remembered</span>}</div>}
@@ -244,7 +245,7 @@ export function ImportView({ project, vars, forms }: ProjectCtx) {
             <label className="flex cursor-pointer items-start gap-3"><input type="checkbox" className="mt-1 accent-[var(--rh-brand)]" checked={update} onChange={(e) => setUpdate(e.target.checked)} /><span><b className="ink block">Update matching records</b><span className="muted text-sm">If a Record id in the file exists on this computer, its answers are updated instead of adding a copy.</span></span></label>
             <button className="btn btn-primary btn-lg w-full" disabled={!mapped} onClick={() => { const all = readJson<Record<string, string[]>>(`lm_map_${project.uuid}`, {}); all[sig(head)] = map; writeJson(`lm_map_${project.uuid}`, all); setStep(3); }}>Review {plural(body.length, 'row')}<Icon name="arrow-right" /></button>
           </aside>
-        </div>
+        </StickyColumns>
       )}
 
       {step === 3 && (<>

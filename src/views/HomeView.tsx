@@ -1,3 +1,4 @@
+import { StickyColumns } from '../components/StickyColumns';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, CardTitle, Empty, Icon, StatusChip, SyncChip } from '../components/ui';
@@ -76,7 +77,7 @@ export function HomeView() {
         </div>
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
+      <StickyColumns className="grid gap-5" style={{ gridTemplateColumns: 'minmax(0, 1fr) 22rem' }}>
         <section className="card p-5 anim-in">
           <CardTitle icon="folder2" title="My projects" sub={plural(projects.data?.length ?? 0, 'project') + ' in total'} />
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -133,7 +134,7 @@ export function HomeView() {
             </div>
           </section>
         </div>
-      </div>
+      </StickyColumns>
     </div>
   );
 }
