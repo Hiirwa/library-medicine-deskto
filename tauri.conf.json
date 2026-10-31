@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Library Medicine",
+  "version": "1.2.0",
+  "identifier": "online.librarymedicine.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Library Medicine",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost",
+      "assetProtocol": { "enable": false, "scope": [] }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "publisher": "Library Medicine",
+    "copyright": "© Library Medicine",
+    "category": "Productivity",
+    "licenseFile": "installer/license.rtf",
+    "shortDescription": "Offline data collection for Library Medicine",
+    "longDescription": "Collect and edit research records without internet. Changes sync automatically with librarymedicine.online when you are back online.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": {
+        "installMode": "both",
+        "languages": ["English", "French"],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
+        "startMenuFolder": "Library Medicine"
+      },
+      "wix": {
+        "language": "en-US",
+        "bannerPath": "installer/wix-banner.bmp",
+        "dialogImagePath": "installer/wix-dialog.bmp"
+      }
+    }
+  },
+  "plugins": {}
+}
