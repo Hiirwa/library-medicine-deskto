@@ -214,8 +214,8 @@ async fn remove_local(state: State<'_, AppState>, path: String) -> Result<(), St
 async fn save_export(path: String, contents: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
     let ext = p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).unwrap_or_default();
-    if !["csv", "tsv", "txt", "json", "jsonl", "md", "html", "xml", "sql"].contains(&ext.as_str()) {
-        return Err("Exports can only be saved as .csv, .tsv, .txt, .json, .jsonl, .md, .html, .xml or .sql files.".into());
+    if !["csv", "tsv", "txt", "json", "jsonl", "md", "html", "xml", "sql", "svg"].contains(&ext.as_str()) {
+        return Err("Exports can only be saved as .csv, .tsv, .txt, .json, .jsonl, .md, .html, .xml, .sql or .svg files.".into());
     }
     tokio::fs::write(p, contents.as_bytes()).await.map_err(err)
 }

@@ -39,3 +39,24 @@ export function apiTokenAccess(me: Me | null | undefined): 'yes' | 'no' | 'unkno
 
 /** A refused token check that is about the plan rather than a wrong token. */
 export const isPlanRefusal = (status: number, message: string) => status === 402 || (status === 403 && /plan|upgrade|subscription|tier|pro|max/i.test(message)) || /upgrade|plan does not|not included in your plan/i.test(message);
+
+const TAGLINE: Record<string, string> = { free: 'Use the platform in your browser', pro: 'Collect data in the field with the desktop app', max: 'For larger teams and studies' };
+const num = (n: number, one: string, many: string) => (n < 0 ? `Unlimited ${many}` : n === 1 ? `1 ${one}` : `${n.toLocaleString()} ${many}`);
+
+/** Plan cards built from what the server reports (names, prices, limits). Falls back to PLANS when the server does not send them yet. */
+export function plansFor(me: Me | null | undefined): Plan[] {
+  const list = me?.plans;
+  if (!list?.length) return PLANS;
+  const rec = list.find((p) => p.key !== 'free' && p.limits.tokens !== 0)?.key;
+  return list.map((p): Plan => ({
+    id: p.key, name: p.name, price: p.price && /\d/.test(p.price) ? p.price : p.price || undefined, period: p.price && /\d/.test(p.price) ? p.period : undefined,
+    tagline: TAGLINE[p.key] ?? '', tokens: p.limits.tokens !== 0, recommended: p.key === rec,
+    features: [
+      [p.limits.tokens !== 0, p.limits.tokens === 0 ? 'API tokens' : num(p.limits.tokens, 'API token', 'API tokens')],
+      [p.limits.offline, 'Offline forms and desktop sync'],
+      [true, num(p.limits.projects, 'active project', 'active projects')],
+      [true, `${num(p.limits.forms, 'form', 'forms')} per project`],
+      [true, `${num(p.limits.records, 'record', 'records')} per project`],
+    ],
+  }));
+}

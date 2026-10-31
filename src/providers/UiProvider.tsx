@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type ProjectTab = 'overview' | 'variables' | 'forms' | 'statistics' | 'workbench' | 'dashboard' | 'reports' | 'data' | 'import' | 'export' | 'files';
+export type ProjectTab = 'overview' | 'variables' | 'forms' | 'sharing' | 'statistics' | 'workbench' | 'dashboard' | 'reports' | 'data' | 'import' | 'export' | 'files';
 export type Route =
   | { page: 'home' }
   | { page: 'project'; project: string; tab: ProjectTab }

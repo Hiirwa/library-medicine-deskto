@@ -26,10 +26,12 @@ const FAQ: { topic: string; q: string; a: string }[] = [
   { topic: 'Data', q: 'Can I change variables or forms here?', a: 'No — the design of a project is managed on the website. The desktop app downloads the latest version at every sync.' },
   { topic: 'Analysis', q: 'Are the statistics based on all records?', a: 'They use the records on this computer. Sync first so that records from other collectors are included. You can restrict an analysis to complete records.' },
   { topic: 'Analysis', q: 'How do I put results in a report?', a: 'Press “Pin to report” in Statistics or the Workbench, then open Reports and keep the “Pinned analyses” section switched on.' },
+  { topic: 'Sharing', q: 'How do I share a form or invite a colleague?', a: 'Open Sharing in the project menu (owners and researchers). Forms & links lets you choose who can submit, copy the public link and show its QR code. Team lets you invite people by email, change roles and choose which forms a data collector can fill. It needs an internet connection.' },
+  { topic: 'Sharing', q: 'Why can I not invite more people?', a: 'Each plan allows a number of owners, researchers, data collectors and viewers per project. Open invitations count too. The counters at the top of Sharing show what is used; upgrade your plan on the website to add more.' },
   { topic: 'Security', q: 'Is my data safe on this computer?', a: 'The API token is kept in the Windows Credential Manager. Signing out removes the token and the offline copy.' },
   { topic: 'Security', q: 'Who can see personal-data questions?', a: 'Only roles allowed by the project owner. If your role cannot see them, they are hidden in the data table, analysis, reports and exports.' },
 ];
-const TOPICS = ['All', 'Sync', 'Data', 'Analysis', 'Security'] as const;
+const TOPICS = ['All', 'Sync', 'Data', 'Analysis', 'Sharing', 'Security'] as const;
 
 export function HelpView() {
   const { server } = useSession();

@@ -95,7 +95,9 @@ export interface SyncResponse {
 export interface Me {
   id: string; email: string; name: string; institution: string | null; scope?: { project_id: number | null; scopes: string[] };
   /** the account's plan, when the server reports it (name or object); used to decide whether API tokens are available */
-  plan?: string | { name?: string; slug?: string; title?: string; api_tokens?: boolean } | null;
+  plan?: string | { key?: string; name?: string; slug?: string; title?: string; api_tokens?: boolean; tokens_max?: number; tokens_used?: number; upgrade_url?: string } | null;
+  /** the plans as shown on the pricing page (names, price text and the limits that matter to the app) */
+  plans?: { key: string; name: string; price: string; period: string; limits: { tokens: number; offline: boolean; projects: number; forms: number; records: number } }[];
   features?: Record<string, boolean>;
 }
 

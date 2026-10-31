@@ -14,7 +14,7 @@ import { checkAccess } from '../lib/access';
 
 export const useProjects = () => useQuery({ queryKey: ['projects'], queryFn: store.listProjects });
 
-const TAB_LABEL: Record<ProjectTab, string> = { overview: 'Overview', variables: 'Variables', forms: 'Forms', statistics: 'Statistics', workbench: 'Workbench', dashboard: 'Dashboard', reports: 'Reports', data: 'Data view', import: 'Import', export: 'Export', files: 'Files' };
+const TAB_LABEL: Record<ProjectTab, string> = { overview: 'Overview', variables: 'Variables', forms: 'Forms', sharing: 'Sharing', statistics: 'Statistics', workbench: 'Workbench', dashboard: 'Dashboard', reports: 'Reports', data: 'Data view', import: 'Import', export: 'Export', files: 'Files' };
 const PAGE_LABEL: Record<string, string> = { home: 'My projects', sync: 'Sync centre', settings: 'Settings', help: 'Help & documentation' };
 
 function NavItem({ icon, label, active, onClick, end, title }: { icon: string; label: string; active?: boolean; onClick: () => void; end?: ReactNode; title?: string }) {
@@ -89,6 +89,7 @@ function Sidebar() {
             <NavItem icon="speedometer2" label="Overview" active={tab === 'overview'} onClick={() => toProject('overview')} />
             <NavItem icon="diagram-3" label="Variables" active={tab === 'variables'} onClick={() => toProject('variables')} />
             <NavItem icon="ui-checks-grid" label="Forms" active={tab === 'forms'} onClick={() => toProject('forms')} />
+            <NavItem icon="share" label="Sharing" active={tab === 'sharing'} onClick={() => toProject('sharing')} end={lock('sharing')} />
             <div className="nav-label">Analysis</div>
             <NavItem icon="calculator" label="Statistics" active={tab === 'statistics'} onClick={() => toProject('statistics')} end={lock('statistics')} />
             <NavItem icon="bezier2" label="Workbench" active={tab === 'workbench'} onClick={() => toProject('workbench')} end={lock('workbench')} />
@@ -97,7 +98,7 @@ function Sidebar() {
             <div className="nav-label">Data management</div>
             <NavItem icon="table" label="Data view" active={tab === 'data'} onClick={() => toProject('data')} end={stats.data?.total ? <span className="count soft">{stats.data.total}</span> : undefined} />
             <NavItem icon="cloud-upload" label="Import" active={tab === 'import'} onClick={() => toProject('import')} end={lock('import')} />
-            <NavItem icon="box-arrow-down" label="Export" active={tab === 'export'} onClick={() => toProject('export')} />
+            <NavItem icon="box-arrow-down" label="Export" active={tab === 'export'} onClick={() => toProject('export')} end={lock('export')} />
             <NavItem icon="paperclip" label="Files" active={tab === 'files'} onClick={() => toProject('files')} />
           </>
         )}

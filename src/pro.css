@@ -151,7 +151,7 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
 .skel { display: inline-block; vertical-align: middle; background: linear-gradient(90deg, var(--rh-surface-3) 0%, color-mix(in srgb, var(--rh-surface-3) 55%, var(--rh-surface)) 45%, var(--rh-surface-3) 90%); background-size: 220% 100%; animation: skel 1.3s ease-in-out infinite; box-shadow: var(--rh-sh-1); }
 @keyframes skel { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
 @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.page > * { animation: page-in .28s var(--rh-ease) both; }
+.page > * { animation: page-in .28s var(--rh-ease) backwards; } /* backwards: no animation effect is left behind, so fixed-position dialogs inside a page still cover the whole window */
 .card, .stat, .tbl-wrap, .pcard { transition: box-shadow .25s var(--rh-ease), transform .25s var(--rh-ease), background-color .2s; }
 .stats > :nth-child(2), .grid > :nth-child(2) { animation-delay: .04s; }
 .stats > :nth-child(3), .grid > :nth-child(3) { animation-delay: .08s; }
@@ -339,3 +339,16 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
 .pager:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--rh-sh-3); }
 .pager:disabled { opacity: .45; cursor: not-allowed; }
 .opt { padding: .55rem 1rem; }
+
+/* sharing */
+.sh-card { padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: .9rem; }
+.sh-link { display: grid; gap: .6rem; padding: .8rem .9rem; }
+.sh-link .field { font-size: .88rem; }
+.dialog.sharedlg { width: min(40rem, calc(100% - 2rem)); margin: 5vh auto 0; display: flex; flex-direction: column; max-height: 90vh; }
+.sd-head { display: flex; align-items: center; gap: .9rem; padding: 1.2rem 1.4rem; box-shadow: 0 1px 0 color-mix(in srgb, var(--rh-muted) 14%, transparent); }
+.sd-body { padding: 1.2rem 1.4rem; overflow-y: auto; min-height: 0; flex: 1; }
+.sd-foot { padding: 1rem 1.4rem; box-shadow: 0 -4px 14px -8px rgba(15, 23, 42, .25); align-items: center; }
+.su-row.locked, .locked > * { opacity: .75; }
+.qr-wrap { display: grid; place-items: center; padding: 1rem; border-radius: 1.2rem; background: #fff; box-shadow: var(--rh-sh-2); justify-self: center; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.notice.ok .selectable { color: var(--rh-ink); }

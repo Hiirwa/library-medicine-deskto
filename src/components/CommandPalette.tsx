@@ -34,7 +34,7 @@ export function CommandPalette() {
     for (const p of projects.data ?? []) {
       base.push({ id: `p-${p.uuid}`, icon: 'folder2-open', label: p.title, hint: 'Project', run: close(() => go({ page: 'project', project: p.uuid, tab: 'overview' })) });
       base.push({ id: `d-${p.uuid}`, icon: 'table', label: `${p.title} — Data`, hint: `${p.records} records`, run: close(() => go({ page: 'project', project: p.uuid, tab: 'data' })) });
-      for (const [tab, icon, name] of [['statistics', 'calculator', 'Statistics'], ['workbench', 'bezier2', 'Workbench'], ['dashboard', 'pie-chart', 'Dashboard'], ['reports', 'file-earmark-bar-graph', 'Reports'], ['import', 'cloud-upload', 'Import'], ['export', 'box-arrow-down', 'Export']] as const) {
+      for (const [tab, icon, name] of [['sharing', 'share', 'Sharing'], ['statistics', 'calculator', 'Statistics'], ['workbench', 'bezier2', 'Workbench'], ['dashboard', 'pie-chart', 'Dashboard'], ['reports', 'file-earmark-bar-graph', 'Reports'], ['import', 'cloud-upload', 'Import'], ['export', 'box-arrow-down', 'Export']] as const) {
         base.push({ id: `${tab}-${p.uuid}`, icon, label: `${p.title} — ${name}`, hint: 'Project', run: close(() => go({ page: 'project', project: p.uuid, tab })) });
       }
     }

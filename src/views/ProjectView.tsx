@@ -14,11 +14,12 @@ import type { Form, Project, Variable } from '../lib/types';
 
 const load = {
   statistics: () => import('./StatisticsView'), workbench: () => import('./WorkbenchView'), dashboard: () => import('./DashboardView'),
-  reports: () => import('./ReportsView'), import: () => import('./ImportView'), export: () => import('./ExportView'),
+  reports: () => import('./ReportsView'), sharing: () => import('./SharingView'), import: () => import('./ImportView'), export: () => import('./ExportView'),
 };
 const StatisticsView = lazy(() => load.statistics().then((m) => ({ default: m.StatisticsView })));
 const WorkbenchView = lazy(() => load.workbench().then((m) => ({ default: m.WorkbenchView })));
 const DashboardView = lazy(() => load.dashboard().then((m) => ({ default: m.DashboardView })));
+const SharingView = lazy(() => load.sharing().then((m) => ({ default: m.SharingView })));
 const ReportsView = lazy(() => load.reports().then((m) => ({ default: m.ReportsView })));
 const ImportView = lazy(() => load.import().then((m) => ({ default: m.ImportView })));
 const ExportView = lazy(() => load.export().then((m) => ({ default: m.ExportView })));
@@ -55,6 +56,7 @@ function render(tab: ProjectTab, ctx: ProjectCtx) {
     case 'workbench': return <WorkbenchView {...ctx} />;
     case 'dashboard': return <DashboardView {...ctx} />;
     case 'reports': return <ReportsView {...ctx} />;
+    case 'sharing': return <SharingView {...ctx} />;
     case 'import': return <ImportView {...ctx} />;
     case 'export': return <ExportView {...ctx} />;
     default: return <OverviewView {...ctx} />;

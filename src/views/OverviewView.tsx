@@ -11,7 +11,7 @@ import { useUi, type ProjectTab } from '../providers/UiProvider';
 import type { ProjectCtx } from './ProjectView';
 
 const GROUPS: { title: string; items: [ProjectTab, string, string, string][] }[] = [
-  { title: 'Analysis', items: [['statistics', 'calculator', 'Statistics', 'Summaries of every variable'], ['workbench', 'bezier2', 'Workbench', 'Cross-tabs, tests, correlation'], ['dashboard', 'pie-chart', 'Dashboard', 'Live charts of the project'], ['reports', 'file-earmark-bar-graph', 'Reports', 'Print or share a report']] },
+  { title: 'Share & analyse', items: [['sharing', 'share', 'Sharing', 'Links, QR codes and the team'], ['statistics', 'calculator', 'Statistics', 'Summaries of every variable'], ['workbench', 'bezier2', 'Workbench', 'Cross-tabs, tests, correlation'], ['dashboard', 'pie-chart', 'Dashboard', 'Live charts of the project'], ['reports', 'file-earmark-bar-graph', 'Reports', 'Print or share a report']] },
   { title: 'Data management', items: [['data', 'table', 'Data view', 'Search, sort and edit records'], ['import', 'cloud-upload', 'Import', 'Bring records from Excel / CSV'], ['export', 'box-arrow-down', 'Export', 'CSV, JSON, codebook'], ['files', 'paperclip', 'Files', 'Attachments kept offline']] },
 ];
 
@@ -97,7 +97,7 @@ export function OverviewView({ project, vars, forms }: ProjectCtx) {
 
       <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))' }}>
         {GROUPS.map((g) => (
-          <section key={g.title} className="card p-5 anim-in"><CardTitle icon={g.title === 'Analysis' ? 'graph-up-arrow' : 'database-gear'} title={g.title} />
+          <section key={g.title} className="card p-5 anim-in"><CardTitle icon={g.title === 'Data management' ? 'database-gear' : 'graph-up-arrow'} title={g.title} />
             <div className="mt-3 grid grid-cols-2 gap-2.5">{g.items.map(([tab, ic, t, d]) => (
               <button key={tab} className="tool" onClick={() => to(tab)}><span className="pk-ic"><Icon name={ic} /></span><span className="min-w-0 text-left"><b className="ink block">{t}</b><small className="muted">{d}</small></span></button>))}</div>
           </section>

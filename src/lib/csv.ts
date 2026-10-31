@@ -46,7 +46,7 @@ export function codebookTable(vars: Variable[]): unknown[][] {
 }
 
 /** Ask where to save, then write any text file (csv, tsv, txt, json, md, html). */
-export async function saveFile(defaultName: string, ext: 'csv' | 'tsv' | 'txt' | 'json' | 'jsonl' | 'md' | 'html' | 'xml' | 'sql', contents: string, filterName = ext.toUpperCase()): Promise<string | null> {
+export async function saveFile(defaultName: string, ext: 'csv' | 'tsv' | 'txt' | 'json' | 'jsonl' | 'md' | 'html' | 'xml' | 'sql' | 'svg', contents: string, filterName = ext.toUpperCase()): Promise<string | null> {
   const path = await save({ title: `Save as ${filterName}`, defaultPath: `${safe(defaultName)} ${stamp()}.${ext}`, filters: [{ name: filterName, extensions: [ext] }] });
   if (!path) return null;
   await native.saveExport(path, contents);

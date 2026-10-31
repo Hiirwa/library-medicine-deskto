@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Brand } from '../components/Brand';
 import { Icon } from '../components/ui';
-import { PLANS, PRICING_PATH, planName } from '../lib/plans';
+import { PRICING_PATH, planName, plansFor } from '../lib/plans';
 import { useSession } from '../providers/AppProvider';
 
 /** Shown instead of the token instructions when the account's plan has no API tokens. */
@@ -10,7 +10,8 @@ export function PlansView({ reason, onBack }: { reason?: string; onBack?: () => 
   const { server, user, signOut, toast, online } = useSession();
   const [busy, setBusy] = useState(false);
   const current = (planName(user) ?? 'Free').trim();
-  const isCurrent = (id: string, name: string) => current.toLowerCase() === name.toLowerCase() || current.toLowerCase() === id;
+  const curKey = ((user?.plan && typeof user.plan === 'object' ? user.plan.key : '') ?? '').toString();
+  const isCurrent = (id: string, name: string) => (!!curKey && curKey === id) || current.toLowerCase() === name.toLowerCase() || current.toLowerCase() === id;
   const site = server.replace(/\/$/, '');
   const open = (path: string) => openUrl(`${site}${path}`).catch(() => toast('Could not open the website.', 'error'));
   // the plan is read when you sign in, so an upgrade is picked up by signing in again (your offline data stays)
@@ -27,20 +28,20 @@ export function PlansView({ reason, onBack }: { reason?: string; onBack?: () => 
           <span className="acc-ic" style={{ width: '3.4rem', height: '3.4rem', fontSize: '1.5rem' }}><Icon name="gem" /></span>
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl grad-text">Upgrade to connect this computer</h1>
-            <p className="muted mt-1 max-w-3xl">The desktop app syncs with a personal API token, and API tokens are part of the Pro and Max plans. {user && <>You are signed in as <b className="ink">{user.name || user.email}</b> on the <b className="ink">{current}</b> plan.</>}</p>
+            <p className="muted mt-1 max-w-3xl">The desktop app syncs with a personal API token, and API tokens are part of the Pro and Max plans. {user && <>You are signed in as <b className="ink">{user.name || user.email}</b> on the <b className="ink">{current}</b>{/plan$/i.test(current) ? '.' : ' plan.'}</>}</p>
           </div>
         </div>
         {reason && <div className="notice warn mt-4"><Icon name="exclamation-triangle" /><span>{reason}</span></div>}
 
         <div className="mt-6 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(17rem, 1fr))' }}>
-          {PLANS.map((p) => {
+          {plansFor(user).map((p) => {
             const mine = isCurrent(p.id, p.name);
             return (
               <section key={p.id} className={`plan ${p.recommended ? 'rec' : ''} ${mine ? 'mine' : ''}`}>
                 {p.recommended && <span className="plan-flag"><Icon name="star-fill" />Recommended</span>}
                 <div className="flex items-center gap-2"><h2 className="text-xl">{p.name}</h2>{mine && <span className="chip chip-ok"><Icon name="check2" />Your plan</span>}</div>
                 <p className="muted text-sm">{p.tagline}</p>
-                <div className="plan-price">{p.price ? <><b>{p.price}</b><small>{p.period ?? '/ month'}</small></> : <small>See prices on the website</small>}</div>
+                <div className="plan-price">{p.price ? <><b>{p.price}</b>{p.period && <small>{p.period}</small>}</> : <small>See prices on the website</small>}</div>
                 <ul className="space-y-2 text-sm">{p.features.map(([ok, t]) => <li key={t} className="flex items-start gap-2"><Icon name={ok ? 'check-circle-fill' : 'x-circle-fill'} className={ok ? 'text-[var(--rh-success)]' : 'text-[var(--rh-danger)]'} /><span className={ok ? '' : 'muted'}>{t}</span></li>)}</ul>
                 {p.tokens && !mine && <button className={`btn mt-auto ${p.recommended ? 'btn-primary' : ''}`} disabled={!online} onClick={() => open(PRICING_PATH)}><Icon name="box-arrow-up-right" />Choose {p.name}</button>}
                 {mine && <button className="btn mt-auto" disabled><Icon name="check2" />Current plan</button>}

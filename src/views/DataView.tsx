@@ -9,6 +9,7 @@ import { ago, shortDate } from '../lib/time';
 import { useSession } from '../providers/AppProvider';
 import { useUi } from '../providers/UiProvider';
 import { useLocal } from '../lib/useLocal';
+import { checkAccess } from '../lib/access';
 import type { LocalRecord } from '../lib/types';
 import type { ProjectCtx } from './ProjectView';
 
@@ -143,7 +144,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
           </Dropdown>
         ) : <button className="btn btn-primary" onClick={() => openEditor({ project: project.uuid, record: null, form: null })} title="New record (Ctrl+N)"><Icon name="plus-lg" />New record</button>)}
         {canAdd && <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'import' })}><Icon name="cloud-upload" />Import</button>}
-        <Dropdown button={(_o, t) => <button className="btn" onClick={t}><Icon name="box-arrow-down" />Export<Icon name="chevron-down" /></button>} width="18rem">
+        {checkAccess('export', project).ok && (<Dropdown button={(_o, t) => <button className="btn" onClick={t}><Icon name="box-arrow-down" />Export<Icon name="chevron-down" /></button>} width="18rem">
           {(close) => (<>
             <div className="mh">CSV for Excel, SPSS, R, Stata</div>
             <button onClick={() => { close(); exportCsv(true, false); }}><Icon name="filetype-csv" />All records · labels</button>
@@ -151,7 +152,7 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
             <hr />
             <button disabled={!rows.length} onClick={() => { close(); exportCsv(labels, true); }}><Icon name="funnel" />Only the {plural(rows.length, 'record')} shown</button>
           </>)}
-        </Dropdown>
+        </Dropdown>)}
       </PageHead>
 
       {project.status !== 'active' && <div className="notice warn"><Icon name="archive" /><span>This project is archived: records are read-only.</span></div>}
