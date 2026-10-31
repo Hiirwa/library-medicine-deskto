@@ -61,7 +61,7 @@ export function FormsView({ project, vars, forms }: ProjectCtx) {
           const left = daysUntil(f.settings?.close_at); const lim = f.settings?.max_responses ?? null;
           const open = f.status === 'published' || f.status === 'active' || f.status === 'open';
           return (
-            <section key={f.uuid} className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
+            <div key={f.uuid} className="sg-cell"><section className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
               <div className="flex items-start gap-3">
                 <span className="pc-ic" style={{ background: 'var(--v-grad)' }}><Icon name={acc?.icon ?? 'ui-checks-grid'} /></span>
                 <div className="min-w-0 flex-1"><h3 title={f.title}>{f.title}</h3>
@@ -102,11 +102,11 @@ export function FormsView({ project, vars, forms }: ProjectCtx) {
                 <button className="btn" onClick={() => toData(f.uuid)} title="Show this form's records"><Icon name="table" />Data</button>
                 {canShare && <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'sharing' })} title="Public link, QR code and who can submit"><Icon name="share" />Share</button>}
               </div>
-            </section>
+            </section></div>
           );
         })}
 
-        <section className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
+        <div className="sg-cell"><section className="pcard fi-card anim-in" style={{ cursor: 'default' }}>
           <div className="flex items-start gap-3">
             <span className="pc-ic"><Icon name="list-ul" /></span>
             <div className="min-w-0 flex-1"><h3>All variables</h3><p className="muted mt-1 text-sm">Manual entry with every question of the project, in codebook order.</p>
@@ -123,7 +123,7 @@ export function FormsView({ project, vars, forms }: ProjectCtx) {
             <button className="btn" onClick={() => toData('__none')}><Icon name="table" />Data</button>
             <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'variables' })}><Icon name="diagram-3" />Codebook</button>
           </div>
-        </section>
+        </section></div>
       </div>
       {!canAdd && <div className="notice info"><Icon name="info-circle" /><span>{project.status !== 'active' ? 'This project is archived, so no new records can be added.' : 'Your role in this project cannot add records.'}</span></div>}
     </div>
