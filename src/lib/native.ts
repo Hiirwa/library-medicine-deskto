@@ -12,6 +12,7 @@ export const api = <T = unknown>(method: string, path: string, json?: unknown, a
 
 export const native = {
   workspace: () => invoke<WorkspaceInfo>('workspace_info'),
+  openWebWindow: (url: string, title: string) => invoke<void>('open_web_window', { url, title }),
   openLocal: (path: string) => invoke<void>('open_local', { path }),
   revealLocal: (path?: string) => invoke<void>('reveal_local', { path: path ?? null }),
   importAttachment: (source: string) => invoke<ImportedFile>('import_attachment', { source }),
