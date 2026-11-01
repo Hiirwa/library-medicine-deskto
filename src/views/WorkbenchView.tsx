@@ -11,6 +11,7 @@ import { chiSquare, compareGroups, describe, fmt, fmtP, frequencies, groupKey, k
 import { useSession } from '../providers/AppProvider';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { webUrl } from '../lib/access';
+import { native } from '../lib/native';
 import type { Variable } from '../lib/types';
 import type { ProjectCtx } from './ProjectView';
 import { WebLink } from '../components/WebLink';
@@ -202,8 +203,9 @@ export function WorkbenchView(ctx: ProjectCtx) {
   const { project } = ctx;
   const { online, server, toast } = useSession();
   const [pref, setPref] = useLocal<'live' | 'local'>('lm_wb_mode', 'live');
-  const [loaded, setLoaded] = useState(false);
+  const [opened, setOpened] = useState(false);
   const url = webUrl(server, project.uuid, 'workbench');
+  const openLive = () => native.openWebWindow(url, 'Workbench · Library Medicine').then(() => setOpened(true)).catch(() => { toast('Could not open the live Workbench here. Opening in your browser instead.', 'error'); openUrl(url).catch(() => undefined); });
   if (!online || pref === 'local') return <LocalWorkbench {...ctx} onLive={online ? () => setPref('live') : undefined} />;
   return (
     <div className="flex h-full min-h-[34rem] flex-col gap-3">
@@ -212,10 +214,14 @@ export function WorkbenchView(ctx: ProjectCtx) {
         <button className="btn" onClick={() => openUrl(url).catch(() => toast('Could not open the website.', 'error'))}><Icon name="box-arrow-up-right" />Open in browser</button>
       </PageHead>
       <div className="card live-frame">
-        {!loaded && <div className="live-loading"><Icon name="arrow-repeat" className="spin" />Loading the live Workbench…</div>}
-        <iframe key={url} title="Workbench (live from the website)" src={url} onLoad={() => setLoaded(true)} allow="clipboard-write; fullscreen" />
+        <div className="live-loading">
+          <span className="pk-ic"><Icon name="bezier2" /></span>
+          <b className="ink text-lg">Live Workbench</b>
+          <span className="text-sm">Opens the real Workbench from the website in its own window, with your records.</span>
+          <button className="btn btn-primary" onClick={openLive}><Icon name="window-stack" />{opened ? 'Reopen live Workbench' : 'Open live Workbench'}</button>
+        </div>
       </div>
-      <p className="muted text-sm">If the page asks you to sign in or stays blank, use <b>Open in browser</b>, or switch to the offline workbench.</p>
+      <p className="muted text-sm">The first time, sign in to the website in that window. Use <b>Open in browser</b> if you prefer your normal browser.</p>
     </div>
   );
 }
