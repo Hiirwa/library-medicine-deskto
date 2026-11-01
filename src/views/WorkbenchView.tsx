@@ -9,6 +9,8 @@ import { useRecords } from '../lib/hooks';
 import { addPin } from '../lib/pins';
 import { chiSquare, compareGroups, describe, fmt, fmtP, frequencies, groupKey, kindOf, numbersOf, pearson, strength, verdict } from '../lib/stats';
 import { useSession } from '../providers/AppProvider';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { webUrl } from '../lib/access';
 import type { Variable } from '../lib/types';
 import type { ProjectCtx } from './ProjectView';
 import { WebLink } from '../components/WebLink';
@@ -45,7 +47,7 @@ function StackedBars({ rows, cols }: { rows: { label: string; counts: number[] }
 }
 
 /** Build an analysis by choosing a method and variables; the result updates as you change them. */
-export function WorkbenchView({ project, vars }: ProjectCtx) {
+function LocalWorkbench({ project, vars, onLive }: ProjectCtx & { onLive?: () => void }) {
   const { toast } = useSession();
   const records = useRecords(project.uuid);
   const hidePii = !project.can.pii;
@@ -132,7 +134,7 @@ export function WorkbenchView({ project, vars }: ProjectCtx) {
   if (records.isLoading) return <PageSkeleton />;
   return (
     <div className="space-y-4">
-      <PageHead icon="bezier2" title="Workbench" sub="Build an analysis, read the result, then pin it to a report"><WebLink project={project.uuid} tab="workbench" /></PageHead>
+      <PageHead icon="bezier2" title="Workbench" sub="Build an analysis, read the result, then pin it to a report">{onLive && <button className="btn" onClick={onLive}><Icon name="broadcast" />Live from website</button>}<WebLink project={project.uuid} tab="workbench" /></PageHead>
       <StickyColumns className="grid items-start gap-4" style={{ gridTemplateColumns: '23rem minmax(0, 1fr)' }}>
         <aside className="card space-y-4 p-5 anim-in">
           <div><span className="label-cap">1 · Method</span>
@@ -194,3 +196,26 @@ export function WorkbenchView({ project, vars }: ProjectCtx) {
   );
 }
 
+
+/** Online: the live Workbench from the website. Offline (or if the person prefers): the local one that runs on this computer. */
+export function WorkbenchView(ctx: ProjectCtx) {
+  const { project } = ctx;
+  const { online, server, toast } = useSession();
+  const [pref, setPref] = useLocal<'live' | 'local'>('lm_wb_mode', 'live');
+  const [loaded, setLoaded] = useState(false);
+  const url = webUrl(server, project.uuid, 'workbench');
+  if (!online || pref === 'local') return <LocalWorkbench {...ctx} onLive={online ? () => setPref('live') : undefined} />;
+  return (
+    <div className="flex h-full min-h-[34rem] flex-col gap-3">
+      <PageHead icon="bezier2" title="Workbench" sub="Live from librarymedicine.online">
+        <button className="btn" onClick={() => setPref('local')}><Icon name="pc-display" />Use offline workbench</button>
+        <button className="btn" onClick={() => openUrl(url).catch(() => toast('Could not open the website.', 'error'))}><Icon name="box-arrow-up-right" />Open in browser</button>
+      </PageHead>
+      <div className="card live-frame">
+        {!loaded && <div className="live-loading"><Icon name="arrow-repeat" className="spin" />Loading the live Workbench…</div>}
+        <iframe key={url} title="Workbench (live from the website)" src={url} onLoad={() => setLoaded(true)} allow="clipboard-write; fullscreen" />
+      </div>
+      <p className="muted text-sm">If the page asks you to sign in or stays blank, use <b>Open in browser</b>, or switch to the offline workbench.</p>
+    </div>
+  );
+}
