@@ -492,3 +492,30 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
    Each card sits in a cell that is as tall as its grid row; the card is sticky inside that cell, so it can never leave its own row or overlap the next one. */
 .sg-cell { display: block; min-width: 0; }
 .sg-cell > * { position: sticky; top: .75rem; }
+
+/* ---- Fixes: website info cards and menu switches (content was overflowing and being clipped) ---- */
+/* the generic ".menu button" rule made every switch as wide as the menu; keep switches at their own size */
+.menu button.switch { width: 2.9rem; height: 1.65rem; padding: 0; flex: 0 0 2.9rem; display: block; border-radius: 999px; }
+.menu button.switch:hover { background: var(--rh-surface-3); }
+.menu button.switch.on, .menu button.switch.on:hover { background: var(--rh-brand); }
+.menu .mi { min-width: 0; }
+.menu .mi > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* cards from the website: Help (support, account) and Export (website data, formats, history) */
+.ew-card { display: flex; flex-direction: column; gap: .9rem; padding: 1.25rem; min-width: 0; max-width: 100%; overflow: hidden; }
+.ew-card h3, .ew-card p { min-width: 0; overflow-wrap: anywhere; }
+.ew-card .btn { max-width: 100%; white-space: nowrap; }
+.ew-card .flex.flex-wrap > .btn, .ew-card .flex > .btn.flex-1 { flex: 1 1 8rem; min-width: 0; justify-content: center; }
+.ew-card .chip { flex-shrink: 0; max-width: 100%; }
+.ew-hist, .ew-formats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.ew-hist > li, .ew-formats > li { display: flex; align-items: center; gap: .7rem; padding: .6rem .7rem; border-radius: .9rem; background: var(--rh-surface-2); min-width: 0; overflow: hidden; }
+.ew-hist > li > .min-w-0, .ew-formats > li > .min-w-0 { flex: 1 1 0; min-width: 0; }
+.ew-hist small, .ew-formats small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ew-formats > li.off { opacity: .6; }
+.ew-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: var(--rh-muted); font-size: .9rem; min-width: 0; }
+.ew-facts > li { display: inline-flex; align-items: center; gap: .4rem; min-width: 0; overflow-wrap: anywhere; }
+.ew-feats { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.ew-feats > div { display: flex; align-items: center; gap: .55rem; min-width: 0; font-size: .9rem; }
+.ew-feats > div > span { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.ew-feats > div.off { opacity: .6; }
+.ew-card .mb-1.flex.justify-between { gap: .75rem; flex-wrap: wrap; }
