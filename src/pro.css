@@ -519,3 +519,8 @@ svg .pt { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
 .ew-feats > div > span { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
 .ew-feats > div.off { opacity: .6; }
 .ew-card .mb-1.flex.justify-between { gap: .75rem; flex-wrap: wrap; }
+
+/* live website embedded in a page (Workbench) */
+.live-frame { position: relative; flex: 1; min-height: 32rem; overflow: hidden; padding: 0; }
+.live-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--rh-surface); }
+.live-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: .6rem; color: var(--rh-muted); font-weight: 600; }
