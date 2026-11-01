@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_sql::{Migration, MigrationKind};
 use tokio::io::AsyncWriteExt;
@@ -137,6 +137,28 @@ fn inside(root: &Path, p: &Path) -> bool {
 
 fn is_uuid(s: &str) -> bool {
     uuid::Uuid::parse_str(s).is_ok()
+}
+
+/// Opens a page of the website inside the app in its own window (a real browser view, so the site's "no framing" rules do not apply).
+/// Only https pages on the configured server are allowed. The window keeps its own sign-in between uses.
+#[tauri::command]
+async fn open_web_window(app: AppHandle, state: State<'_, AppState>, url: String, title: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(err)?;
+    let server = url::Url::parse(&state.server.lock().map_err(err)?.clone()).map_err(err)?;
+    if parsed.scheme() != "https" || parsed.host_str() != server.host_str() {
+        return Err("Only pages of the Library Medicine website can be opened here.".into());
+    }
+    if let Some(w) = app.get_webview_window("web") {
+        let _ = w.close();
+    }
+    WebviewWindowBuilder::new(&app, "web", WebviewUrl::External(parsed))
+        .title(title)
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(800.0, 560.0)
+        .center()
+        .build()
+        .map_err(err)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -549,6 +571,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            open_web_window,
             workspace_info,
             open_local,
             reveal_local,
