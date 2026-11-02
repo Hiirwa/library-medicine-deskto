@@ -28,7 +28,7 @@ const USER_AGENT_BASE: &str = concat!("LibraryMedicineDesktop/", env!("CARGO_PKG
 /// The custom link the installers register; the website opens the app with librarymedicine://open
 const LINK_SCHEME: &str = "librarymedicine";
 
-/// "LibraryMedicineDesktop/1.2.1 (windows)": the website uses it to show "Open Library Medicine".
+/// "LibraryMedicineDesktop/1.2.1 (windows)": the website uses it to show "Open Library Medicine" instead of "Download".
 fn user_agent() -> String {
     format!("{USER_AGENT_BASE} ({})", std::env::consts::OS)
 }
@@ -41,6 +41,7 @@ fn focus_main(app: &AppHandle) {
         let _ = w.set_focus();
     }
 }
+
 // ---------------------------------------------------------------------------------------------- state
 
 struct AppState {
@@ -560,7 +561,9 @@ fn migrations() -> Vec<Migration> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-        tauri::Builder::default()
+    tauri::Builder::default()
+        // must be the first plugin: a second launch (double-click, or a librarymedicine:// link on Windows)
+        // hands its arguments to this copy, which forwards the link to deep-link and comes to the front
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| focus_main(app)))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_sql::Builder::default().add_migrations(DB_URL, migrations()).build())
@@ -572,7 +575,7 @@ pub fn run() {
                 eprintln!("could not create the workspace folder {}: {e}", root.display());
             }
             let http = reqwest::Client::builder()
-                .user_agent(USER_AGENT)
+                .user_agent(user_agent())
                 .connect_timeout(Duration::from_secs(10))
                 .timeout(Duration::from_secs(120))
                 .build()?;
@@ -584,11 +587,13 @@ pub fn run() {
                 online: online.clone(),
                 workspace: root,
             });
-                        start_network_monitor(app.handle().clone(), online);
+            start_network_monitor(app.handle().clone(), online);
 
-            // librarymedicine://open from the website
+            // librarymedicine://open from the website: register the link for this user (also repairs installs made
+            // by older installers) and bring the window forward whenever a link arrives
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
+                // Windows / Linux: write the registration for the current user (macOS uses the app bundle's Info.plist)
                 if cfg!(any(windows, target_os = "linux")) {
                     if let Err(e) = app.deep_link().register_all() {
                         eprintln!("could not register {LINK_SCHEME}:// links: {e}");
@@ -598,7 +603,7 @@ pub fn run() {
                 app.deep_link().on_open_url(move |event| {
                     focus_main(&handle);
                     let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
-                    let _ = handle.emit("deep-link", urls);
+                    let _ = handle.emit("deep-link", urls); // the web view may route to the page in the link later
                 });
             }
             Ok(())

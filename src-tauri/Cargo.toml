@@ -19,7 +19,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+# librarymedicine:// links: the website's "Open Library Medicine" button starts or focuses the app
 tauri-plugin-deep-link = "2"
+# one running copy: a second launch (e.g. a librarymedicine:// link on Windows) focuses the open window instead
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
