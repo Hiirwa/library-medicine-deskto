@@ -584,7 +584,23 @@ pub fn run() {
                 online: online.clone(),
                 workspace: root,
             });
-            start_network_monitor(app.handle().clone(), online);
+                        start_network_monitor(app.handle().clone(), online);
+
+            // librarymedicine://open from the website
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                if cfg!(any(windows, target_os = "linux")) {
+                    if let Err(e) = app.deep_link().register_all() {
+                        eprintln!("could not register {LINK_SCHEME}:// links: {e}");
+                    }
+                }
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    focus_main(&handle);
+                    let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                    let _ = handle.emit("deep-link", urls);
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
