@@ -1,7 +1,7 @@
 {
   "name": "library-medicine-desktop",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Library Medicine desktop app: offline-first data collection that syncs with librarymedicine.online",
   "type": "module",
   "scripts": {
