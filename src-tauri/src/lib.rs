@@ -155,8 +155,39 @@ fn is_uuid(s: &str) -> bool {
     uuid::Uuid::parse_str(s).is_ok()
 }
 
+/// Asks the server for a one-time sign-in link (valid 60 s, single use) that opens `page` already signed in as the
+/// connected account. Returns None when there is no token, the server is unreachable or refuses; the caller then
+/// opens the page normally and the user signs in by hand.
+async fn signed_in_url(state: &State<'_, AppState>, page: &url::Url, server: &url::Url) -> Option<url::Url> {
+    let tok = token(state).ok().flatten()?;
+    let next = match (page.query(), page.fragment()) {
+        (Some(q), Some(f)) => format!("{}?{}#{}", page.path(), q, f),
+        (Some(q), None) => format!("{}?{}", page.path(), q),
+        (None, Some(f)) => format!("{}#{}", page.path(), f),
+        (None, None) => page.path().to_string(),
+    };
+    let res = state
+        .http
+        .post(build_url(state, "api/v1/auth/web-ticket"))
+        .header("Accept", "application/json")
+        .header("X-Requested-With", "XMLHttpRequest")
+        .bearer_auth(tok)
+        .json(&serde_json::json!({ "next": next }))
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    if !res.status().is_success() {
+        return None;
+    }
+    let body: Value = res.json().await.ok()?;
+    let link = url::Url::parse(body.get("url")?.as_str()?).ok()?;
+    // only ever follow a link back to the same https server
+    (link.scheme() == "https" && link.host_str() == server.host_str()).then_some(link)
+}
+
 /// Opens a page of the website inside the app in its own window (a real browser view, so the site's "no framing" rules do not apply).
-/// Only https pages on the configured server are allowed. The window keeps its own sign-in between uses.
+/// Only https pages on the configured server are allowed. The window is signed in automatically as the connected account.
 #[tauri::command]
 async fn open_web_window(app: AppHandle, state: State<'_, AppState>, url: String, title: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(err)?;
@@ -167,7 +198,8 @@ async fn open_web_window(app: AppHandle, state: State<'_, AppState>, url: String
     if let Some(w) = app.get_webview_window("web") {
         let _ = w.close();
     }
-    WebviewWindowBuilder::new(&app, "web", WebviewUrl::External(parsed))
+    let target = signed_in_url(&state, &parsed, &server).await.unwrap_or(parsed);
+    WebviewWindowBuilder::new(&app, "web", WebviewUrl::External(target))
         .title(title)
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 560.0)

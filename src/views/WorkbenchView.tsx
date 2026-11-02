@@ -217,7 +217,7 @@ export function WorkbenchView(ctx: ProjectCtx) {
         <div className="live-loading">
           <span className="pk-ic"><Icon name="bezier2" /></span>
           <b className="ink text-lg">Live Workbench</b>
-          <span className="text-sm">Opens the real Workbench from the website in its own window, with your records.</span>
+          <span className="text-sm">Opens the real Workbench from the website in its own window, already signed in to your connected account.</span>
           <button className="btn btn-primary" onClick={openLive}><Icon name="window-stack" />{opened ? 'Reopen live Workbench' : 'Open live Workbench'}</button>
         </div>
       </div>
