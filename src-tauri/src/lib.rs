@@ -24,8 +24,23 @@ use tokio::io::AsyncWriteExt;
 const KEYRING_SERVICE: &str = "online.librarymedicine.desktop";
 const DEFAULT_SERVER: &str = "https://librarymedicine.online";
 const DB_URL: &str = "sqlite:library-medicine.db";
-const USER_AGENT: &str = concat!("LibraryMedicineDesktop/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT_BASE: &str = concat!("LibraryMedicineDesktop/", env!("CARGO_PKG_VERSION"));
+/// The custom link the installers register; the website opens the app with librarymedicine://open
+const LINK_SCHEME: &str = "librarymedicine";
 
+/// "LibraryMedicineDesktop/1.2.1 (windows)": the website uses it to show "Open Library Medicine".
+fn user_agent() -> String {
+    format!("{USER_AGENT_BASE} ({})", std::env::consts::OS)
+}
+
+/// Brings the main window to the front (restored, visible, focused).
+fn focus_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
 // ---------------------------------------------------------------------------------------------- state
 
 struct AppState {
