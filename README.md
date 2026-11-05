@@ -9,6 +9,12 @@ An offline-first Windows app for **librarymedicine.online**. Researchers and dat
 
 ---
 
+## What's new in 1.2.2
+
+- **Help:** video tutorials card (from the website's Admin → Settings → Help videos, cached for offline use; falls back to searching the YouTube channel), "Watch the video" and "Read the guide" in every project tour area, new Sync centre and Sharing tours, and new FAQ topics (install, update, API token, several computers, uninstalling, lost laptop, stuck sync).
+- `tauri.conf.json`: the CSP allows video thumbnails from `https://i.ytimg.com`.
+- Needs the website update that adds `videos` to `GET /api/v1/help-info` (older servers still work: the app shows channel links).
+
 ## What's new in 1.2
 
 - **Installer:** branded Welcome/Finish pages, language choice (English, French), install for me or all users, folder and shortcut choices, a "Before you install" page, and a first-run setup (theme, sync, workspace folder). Build also publishes `SHA256SUMS.txt`. See `INSTALL.md`.
