@@ -1,6 +1,6 @@
 [package]
 name = "library-medicine-desktop"
-version = "1.5.3"
+version = "1.5.4"
 description = "Library Medicine desktop app: offline-first data collection that syncs with librarymedicine.online"
 authors = ["Library Medicine"]
 edition = "2021"
