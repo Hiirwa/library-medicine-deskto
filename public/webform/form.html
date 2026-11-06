@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-section="collect">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="date-format" content="d.m.Y">
+<title>Form</title>
+<!--
+  The website's data-entry form, unchanged: same stylesheet bundle (rh-collect), same runtime (form-runtime.js,
+  formula.js, who-growth.js) and the same field enhancements (theme.js: date pickers, field icons, answered ticks).
+  The desktop app mounts it with window.mountForm(options) and saves through the options' save() hook.
+  Update these files from librarymedicine.online/public/assets when the website's form changes.
+-->
+<script src="host-theme.js"></script>
+<link rel="stylesheet" href="assets/css/collect.css">
+<style>
+  /* the desktop window already has its own header and buttons: give the form the page to itself */
+  html, body { background: var(--bs-body-bg); }
+  body { padding: 1.25rem 1rem 2rem; }
+  .rh-content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .rf-container { margin-left: auto; margin-right: auto; }
+  /* the app has its own light/dark switch */
+  #themeToggle, .theme-toggle { display: none !important; }
+  #rhBoot { display: flex; align-items: center; justify-content: center; gap: .6rem; padding: 4rem 0; color: var(--bs-secondary-color); }
+</style>
+</head>
+<body class="lm-desktop-form">
+<div class="rh-topbar d-none" aria-hidden="true"></div>
+<main class="rh-content" id="main" tabindex="-1">
+  <div class="rf-container" id="rfRoot"><div id="rhBoot"><span class="spinner-border spinner-border-sm"></span> Loading the form…</div></div>
+</main>
+<script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+<script src="assets/js/who-growth.js"></script>
+<script src="assets/js/formula.js"></script>
+<script src="assets/js/form-runtime.js"></script>
+<script src="assets/js/theme.js"></script>
+<script src="host.js"></script>
+</body>
+</html>
