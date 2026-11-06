@@ -3,7 +3,8 @@
 import type { Me } from './types';
 
 export interface Plan { id: string; name: string; price?: string; period?: string; tagline: string; tokens: boolean; recommended?: boolean; features: [boolean, string][] }
-export const PRICING_PATH = '/pricing';
+/** The website's pricing section (the app shows it in its own window: components/PricingModal). */
+export const PRICING_PATH = '/#pricing';
 
 export const PLANS: Plan[] = [
   { id: 'free', name: 'Free', tagline: 'Use the platform in your browser', tokens: false,
@@ -38,7 +39,7 @@ export function apiTokenAccess(me: Me | null | undefined): 'yes' | 'no' | 'unkno
 }
 
 /** A refused token check that is about the plan rather than a wrong token. */
-export const isPlanRefusal = (status: number, message: string) => status === 402 || (status === 403 && /plan|upgrade|subscription|tier|pro|max/i.test(message)) || /upgrade|plan does not|not included in your plan/i.test(message);
+export const isPlanRefusal = (status: number, message: string) => status === 402 || (status === 403 && /\b(plan|upgrade|subscription|tier)\b/i.test(message)) || /\bupgrade\b|plan does not|not included in your plan/i.test(message);
 
 const TAGLINE: Record<string, string> = { free: 'Use the platform in your browser', pro: 'Collect data in the field with the desktop app', max: 'For larger teams and studies' };
 const num = (n: number, one: string, many: string) => (n < 0 ? `Unlimited ${many}` : n === 1 ? `1 ${one}` : `${n.toLocaleString()} ${many}`);

@@ -85,7 +85,8 @@ export function TokenView() {
     setBusy(true);
     try {
       const me = await api<Me>('GET', 'api/v1/me', undefined, t);
-      if (isPlanRefusal(me.status, apiError(me, ''))) { setPlanBlock(apiError(me, 'Your plan does not include API tokens.')); return; }
+      // never show the plans to someone whose plan includes API tokens (administrators, Pro, Max), whatever the message says
+      if (apiTokenAccess(user) !== 'yes' && isPlanRefusal(me.status, apiError(me, ''))) { setPlanBlock(apiError(me, 'Your plan does not include API tokens.')); return; }
       if (me.status !== 200) { setError(me.status === 401 ? 'This token is not valid (revoked, expired or mistyped).' : apiError(me)); return; }
       if (user && me.body.id !== user.id) { setError(`This token belongs to ${me.body.email}, not to ${user.email}. Create a token while signed in as yourself.`); return; }
       if (!(me.body.scope?.scopes ?? []).includes('write')) { setError('This token is read-only. Create a "Read & write" token so your offline records can be sent.'); return; }

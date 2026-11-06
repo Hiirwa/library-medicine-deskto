@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Brand } from '../components/Brand';
 import { Icon } from '../components/ui';
-import { PRICING_PATH, planName, plansFor } from '../lib/plans';
+import { planName, plansFor } from '../lib/plans';
+import { PricingModal } from '../components/PricingModal';
 import { useSession } from '../providers/AppProvider';
 
 /** Shown instead of the token instructions when the account's plan has no API tokens. */
 export function PlansView({ reason, onBack }: { reason?: string; onBack?: () => void }) {
   const { server, user, signOut, toast, online } = useSession();
   const [busy, setBusy] = useState(false);
+  const [pricing, setPricing] = useState<{ plan: string | null } | null>(null);
   const current = (planName(user) ?? 'Free').trim();
   const curKey = ((user?.plan && typeof user.plan === 'object' ? user.plan.key : '') ?? '').toString();
   const isCurrent = (id: string, name: string) => (!!curKey && curKey === id) || current.toLowerCase() === name.toLowerCase() || current.toLowerCase() === id;
@@ -43,7 +45,7 @@ export function PlansView({ reason, onBack }: { reason?: string; onBack?: () => 
                 <p className="muted text-sm">{p.tagline}</p>
                 <div className="plan-price">{p.price ? <><b>{p.price}</b>{p.period && <small>{p.period}</small>}</> : <small>See prices on the website</small>}</div>
                 <ul className="space-y-2 text-sm">{p.features.map(([ok, t]) => <li key={t} className="flex items-start gap-2"><Icon name={ok ? 'check-circle-fill' : 'x-circle-fill'} className={ok ? 'text-[var(--rh-success)]' : 'text-[var(--rh-danger)]'} /><span className={ok ? '' : 'muted'}>{t}</span></li>)}</ul>
-                {p.tokens && !mine && <button className={`btn mt-auto ${p.recommended ? 'btn-primary' : ''}`} disabled={!online} onClick={() => open(PRICING_PATH)}><Icon name="box-arrow-up-right" />Choose {p.name}</button>}
+                {p.tokens && !mine && <button className={`btn mt-auto ${p.recommended ? 'btn-primary' : ''}`} disabled={!online} onClick={() => setPricing({ plan: p.id })}><Icon name="tags" />Choose {p.name}</button>}
                 {mine && <button className="btn mt-auto" disabled><Icon name="check2" />Current plan</button>}
               </section>
             );
@@ -51,12 +53,13 @@ export function PlansView({ reason, onBack }: { reason?: string; onBack?: () => 
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <button className="btn btn-primary btn-lg" disabled={!online} onClick={() => open(PRICING_PATH)}><Icon name="rocket-takeoff" />View prices & upgrade</button>
+          <button className="btn btn-primary btn-lg" onClick={() => setPricing({ plan: null })}><Icon name="rocket-takeoff" />View prices & upgrade</button>
           <button className="btn btn-lg" disabled={busy} onClick={recheck} title="Sign in again so the app reads your new plan"><Icon name="arrow-repeat" className={busy ? 'spin' : ''} />I’ve upgraded — check again</button>
           <button className="btn btn-lg" disabled={!online} onClick={() => open('')}><Icon name="globe2" />Keep using the website</button>
           {onBack && <button className="btn btn-lg" onClick={onBack}><Icon name="arrow-left" />Back to the token steps</button>}
           {!online && <span className="help"><Icon name="wifi-off" className="mr-1" />Connect to the internet to open the website.</span>}
         </div>
+        {pricing && <PricingModal focusPlan={pricing.plan} onClose={() => setPricing(null)} />}
         <p className="help mt-3 text-center"><Icon name="shield-check" className="mr-1" />After upgrading, choose “I’ve upgraded — check again”, sign in once more, and the token steps appear. Nothing on this computer is deleted.</p>
       </div>
     </div>
