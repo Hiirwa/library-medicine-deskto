@@ -458,7 +458,7 @@ async fn api_request(state: State<'_, AppState>, req: ApiRequest) -> Result<ApiR
 
 /// Downloads an attached file into files\<project>\<uuid>__<name>, checks its SHA-256, returns the local path.
 #[tauri::command]
-async fn download_attachment(state: State<'_, AppState>, uuid: String, project: String, name: String, sha256: Option<String>) -> Result<String, String> {
+async fn download_attachment(state: State<'_, AppState>, uuid: String, project: String, name: String, sha256: Option<String>, scope: Option<String>) -> Result<String, String> {
     if !is_uuid(&uuid) || !is_uuid(&project) {
         return Err("Invalid file id.".into());
     }
@@ -466,7 +466,9 @@ async fn download_attachment(state: State<'_, AppState>, uuid: String, project: 
     tokio::fs::create_dir_all(&dir).await.map_err(err)?;
     let dest = dir.join(format!("{}__{}", uuid, safe_name(&name)));
     let part = dir.join(format!("{uuid}.part"));
-    let url = build_url(&state, &format!("api/v1/sync/files/{uuid}"));
+    // "team": the person syncs every record of projects where their role sees all data, so their files too
+    let q = if scope.as_deref() == Some("team") { "?scope=team" } else { "" };
+    let url = build_url(&state, &format!("api/v1/sync/files/{uuid}{q}"));
     let rb = authorize(state.http.get(&url), &state, Some("token"))?;
     let res = rb.send().await.map_err(err)?;
     if !res.status().is_success() {
