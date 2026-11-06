@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSignOut } from './Confirm';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -17,9 +17,9 @@ export const useProjects = () => useQuery({ queryKey: ['projects'], queryFn: sto
 const TAB_LABEL: Record<ProjectTab, string> = { overview: 'Overview', variables: 'Variables', forms: 'Forms', sharing: 'Sharing', statistics: 'Statistics', workbench: 'Workbench', dashboard: 'Dashboard', reports: 'Reports', data: 'Data view', import: 'Import', export: 'Export', files: 'Files' };
 const PAGE_LABEL: Record<string, string> = { home: 'My projects', sync: 'Sync centre', settings: 'Settings', help: 'Help & documentation' };
 
-function NavItem({ icon, label, active, onClick, end, title }: { icon: string; label: string; active?: boolean; onClick: () => void; end?: ReactNode; title?: string }) {
+function NavItem({ icon, label, active, onClick, end, title, c }: { icon: string; label: string; active?: boolean; onClick: () => void; end?: ReactNode; title?: string; c?: string }) {
   return (
-    <button type="button" className={`nav-item ${active ? 'active' : ''}`} onClick={onClick} title={title ?? label} aria-current={active ? 'page' : undefined}>
+    <button type="button" className={`nav-item ${active ? 'active' : ''}`} onClick={onClick} title={title ?? label} aria-current={active ? 'page' : undefined} style={c ? ({ '--nc': `var(--vv-${c})` } as CSSProperties) : undefined}>
       <Icon name={icon} /><span className="txt">{label}</span>{end && <span className="nav-end">{end}</span>}
     </button>
   );
@@ -44,8 +44,8 @@ function Sidebar() {
     <aside className={`sb ${collapsed ? 'collapsed' : ''}`} aria-label="Main navigation">
       <div className="sb-brand" onClick={() => go({ page: 'home' })} title="My projects"><Brand /></div>
       <div className="sb-scroll">
-        <NavItem icon="grid-1x2" label="My projects" active={route.page === 'home'} onClick={() => go({ page: 'home' })} />
-        <NavItem icon="arrow-repeat" label="Sync centre" active={route.page === 'sync'} onClick={() => go({ page: 'sync' })}
+        <NavItem icon="grid-1x2" label="My projects" c="1" active={route.page === 'home'} onClick={() => go({ page: 'home' })} />
+        <NavItem icon="arrow-repeat" label="Sync centre" c="3" active={route.page === 'sync'} onClick={() => go({ page: 'sync' })}
           end={pending.data ? <span className="count" title={`${pending.data} waiting to send`}>{pending.data}</span> : undefined} />
 
         {project && (
@@ -86,25 +86,25 @@ function Sidebar() {
               </div>
             </div>
             <div className="nav-label">Project</div>
-            <NavItem icon="speedometer2" label="Overview" active={tab === 'overview'} onClick={() => toProject('overview')} />
-            <NavItem icon="diagram-3" label="Variables" active={tab === 'variables'} onClick={() => toProject('variables')} />
-            <NavItem icon="ui-checks-grid" label="Forms" active={tab === 'forms'} onClick={() => toProject('forms')} />
-            <NavItem icon="share" label="Sharing" active={tab === 'sharing'} onClick={() => toProject('sharing')} end={lock('sharing')} />
+            <NavItem icon="speedometer2" label="Overview" c="2" active={tab === 'overview'} onClick={() => toProject('overview')} />
+            <NavItem icon="diagram-3" label="Variables" c="9" active={tab === 'variables'} onClick={() => toProject('variables')} />
+            <NavItem icon="ui-checks-grid" label="Forms" c="8" active={tab === 'forms'} onClick={() => toProject('forms')} />
+            <NavItem icon="share" label="Sharing" c="5" active={tab === 'sharing'} onClick={() => toProject('sharing')} end={lock('sharing')} />
             <div className="nav-label">Analysis</div>
-            <NavItem icon="calculator" label="Statistics" active={tab === 'statistics'} onClick={() => toProject('statistics')} end={lock('statistics')} />
-            <NavItem icon="bezier2" label="Workbench" active={tab === 'workbench'} onClick={() => toProject('workbench')} end={lock('workbench')} />
-            <NavItem icon="pie-chart" label="Dashboard" active={tab === 'dashboard'} onClick={() => toProject('dashboard')} end={lock('dashboard')} />
-            <NavItem icon="file-earmark-bar-graph" label="Reports" active={tab === 'reports'} onClick={() => toProject('reports')} end={lock('reports')} />
+            <NavItem icon="calculator" label="Statistics" c="1" active={tab === 'statistics'} onClick={() => toProject('statistics')} end={lock('statistics')} />
+            <NavItem icon="bezier2" label="Workbench" c="9" active={tab === 'workbench'} onClick={() => toProject('workbench')} end={lock('workbench')} />
+            <NavItem icon="pie-chart" label="Dashboard" c="6" active={tab === 'dashboard'} onClick={() => toProject('dashboard')} end={lock('dashboard')} />
+            <NavItem icon="file-earmark-bar-graph" label="Reports" c="7" active={tab === 'reports'} onClick={() => toProject('reports')} end={lock('reports')} />
             <div className="nav-label">Data management</div>
-            <NavItem icon="table" label="Data view" active={tab === 'data'} onClick={() => toProject('data')} end={stats.data?.total ? <span className="count soft">{stats.data.total}</span> : undefined} />
-            <NavItem icon="cloud-upload" label="Import" active={tab === 'import'} onClick={() => toProject('import')} end={lock('import')} />
-            <NavItem icon="box-arrow-down" label="Export" active={tab === 'export'} onClick={() => toProject('export')} end={lock('export')} />
-            <NavItem icon="paperclip" label="Files" active={tab === 'files'} onClick={() => toProject('files')} />
+            <NavItem icon="table" label="Data view" c="2" active={tab === 'data'} onClick={() => toProject('data')} end={stats.data?.total ? <span className="count soft">{stats.data.total}</span> : undefined} />
+            <NavItem icon="cloud-upload" label="Import" c="4" active={tab === 'import'} onClick={() => toProject('import')} end={lock('import')} />
+            <NavItem icon="box-arrow-down" label="Export" c="10" active={tab === 'export'} onClick={() => toProject('export')} end={lock('export')} />
+            <NavItem icon="paperclip" label="Files" c="5" active={tab === 'files'} onClick={() => toProject('files')} />
           </>
         )}
         <div className="h-3" />
-        <NavItem icon="gear" label="Settings" active={route.page === 'settings'} onClick={() => go({ page: 'settings' })} />
-        <NavItem icon="book" label="Help & documentation" active={route.page === 'help'} onClick={() => go({ page: 'help' })} />
+        <NavItem icon="gear" label="Settings" c="9" active={route.page === 'settings'} onClick={() => go({ page: 'settings' })} />
+        <NavItem icon="book" label="Help & documentation" c="3" active={route.page === 'help'} onClick={() => go({ page: 'help' })} />
       </div>
       <Dropdown style={{ left: '.8rem', right: '.8rem', bottom: 'calc(100% + .4rem)' }} button={(open, toggle) => (
         <button type="button" className="sb-user" onClick={toggle} aria-expanded={open}>
@@ -130,9 +130,10 @@ function Sidebar() {
 
 function Topbar() {
   const { route, go, toggleSidebar, dark, setTheme, setPalette } = useUi();
-  const { online, syncing, sync, server } = useSession();
+  const { online, syncing, sync, server, live, revoked } = useSession();
   const projects = useProjects();
   const project = route.page === 'project' ? projects.data?.find((p) => p.uuid === route.project) : null;
+  const isLive = online && live === 'live' && !revoked;
   return (
     <header className="tb">
       <button className="btn btn-icon btn-sm" onClick={toggleSidebar} title="Show or hide the menu (Ctrl+B)" aria-label="Toggle menu"><Icon name="layout-sidebar" /></button>
@@ -149,8 +150,9 @@ function Topbar() {
         )}
       </nav>
       <button className="btn btn-sm btn-soft" onClick={() => setPalette(true)} title="Search projects, records and pages (Ctrl+K)"><Icon name="search" /><span>Search</span><kbd>Ctrl K</kbd></button>
-      <span className={`netpill ${online ? 'on' : 'off'}`} title={online ? `Connected to ${server}` : `Cannot reach ${server}. Changes are saved on this computer.`}>
-        <span className="dot" />{online ? 'Online' : 'Offline'}
+      <span className={`netpill ${online && !revoked ? 'on' : 'off'} ${isLive ? 'live' : ''}`} onClick={() => go({ page: 'sync' })} style={{ cursor: 'pointer' }}
+        title={revoked ? 'This computer was disconnected on the website' : isLive ? `Live: changes on ${new URL(server).host} arrive within seconds` : online ? `Connected to ${server}` : `Cannot reach ${server}. Changes are saved on this computer.`}>
+        <span className="dot" />{revoked ? 'Disconnected' : isLive ? 'Live' : online ? 'Online' : 'Offline'}
       </span>
       <button className="btn btn-primary" onClick={() => sync()} disabled={!online || syncing} title={online ? 'Send and receive changes (F5)' : 'Connect to the internet to sync'}>
         <Icon name="arrow-repeat" className={syncing ? 'spin' : ''} />{syncing ? 'Syncing…' : 'Sync now'}
@@ -161,7 +163,7 @@ function Topbar() {
 }
 
 function StatusBar() {
-  const { lastSync, lastResult, settings } = useSession();
+  const { lastSync, lastResult, settings, live, lastCheck } = useSession();
   const pending = useQuery({ queryKey: ['pending'], queryFn: store.outboxCount });
   const fstats = useQuery({ queryKey: ['fstats'], queryFn: store.fileStats });
   const log = useQuery({ queryKey: ['synclog'], queryFn: () => store.syncLog(20) });
@@ -171,6 +173,7 @@ function StatusBar() {
       <span><Icon name="send" />Waiting to send <b style={pending.data ? { color: 'var(--rh-warning)' } : undefined}>{pending.data ?? 0}</b></span>
       <span><Icon name="paperclip" />Files offline <b>{fstats.data?.offline ?? 0}/{fstats.data?.total ?? 0}</b>{fstats.data?.waiting ? ` · ${fstats.data.waiting} to upload` : ''}</span>
       <span><Icon name="stopwatch" />Auto-sync <b>{settings.autoSyncMin ? `every ${settings.autoSyncMin} min` : 'off'}</b></span>
+      <span title={lastCheck ? `Website last checked ${ago(lastCheck)}` : undefined}><Icon name="broadcast" />Live sync <b>{!settings.liveSync ? 'off' : live === 'live' ? `on · ${settings.liveEverySec}s` : live === 'unsupported' ? 'needs server update' : 'paused'}</b></span>
       <span className="flex-1" />
       {log.data?.[0] && <span className="truncate" title={log.data.map((l) => `${shortDate(l.at)} — ${l.summary}`).join('\n')}>{log.data[0].summary}</span>}
     </footer>
@@ -209,6 +212,20 @@ function useShortcuts() {
   }, [route, go, back, toggleSidebar, setPalette, openEditor, editor, palette, sync, online, projects.data]);
 }
 
+/** Shown when the website disconnected this computer (Account → Devices). */
+function RevokedBar() {
+  const { revoked, retryConnection, server, syncing } = useSession();
+  if (!revoked) return null;
+  return (
+    <div className="revoked-bar anim-in" role="alert">
+      <Icon name="plug" />
+      <span className="min-w-0 flex-1">{revoked} Your data stays on this computer.</span>
+      <button className="btn btn-sm" onClick={() => openUrl(`${server}/account#devices`)}><Icon name="box-arrow-up-right" />Open Devices</button>
+      <button className="btn btn-sm" disabled={syncing} onClick={() => retryConnection()}><Icon name="arrow-clockwise" />Try again</button>
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   useShortcuts();
   return (
@@ -216,6 +233,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="main">
         <Topbar />
+        <RevokedBar />
         {children}
         <StatusBar />
       </div>

@@ -1,11 +1,14 @@
 // Local SQLite store (schema: migrations in src-tauri/src/lib.rs).
 // Everything the user sees is read from here, so the app works the same with or without internet.
 import Database from '@tauri-apps/plugin-sql';
-import type { FileManifest, Form, LocalFile, LocalRecord, OutboxRow, Project, RecordData, ServerRecord, Variable } from './types';
+import type { ConflictCopy, FileManifest, Form, LocalFile, LocalRecord, OutboxRow, Project, RecordData, ServerRecord, Variable } from './types';
 import { nowIso } from './time';
 
 let dbp: Promise<Database> | null = null;
 export const db = () => (dbp ??= Database.load('sqlite:library-medicine.db'));
+
+/** Tells the app that something was saved on this computer (live sync sends it within seconds). */
+const changed = () => { try { window.dispatchEvent(new Event('lm-local-change')); } catch { /* not in a window */ } };
 
 const j = <T>(s: string | null | undefined, d: T): T => {
   if (!s) return d;
@@ -111,7 +114,7 @@ export async function saveLocalRecord(input: { uuid: string; project: string; fo
   await d.execute(
     'INSERT INTO outbox (uuid, op, project, form, partial, status, data, client_updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
     [input.uuid, 'upsert', input.project, input.form, input.status === 'draft' ? 1 : 0, input.status, JSON.stringify(input.data), at],
-  );
+  );  changed();
 }
 
 /** Delete on this computer (soft) and queue the deletion. */
@@ -125,7 +128,7 @@ export async function deleteLocalRecord(rec: LocalRecord) {
     return;
   }
   await d.execute('UPDATE records SET deleted_at = $1, updated_at = $1, dirty = 1 WHERE uuid = $2', [at, rec.uuid]);
-  await d.execute('INSERT INTO outbox (uuid, op, project, client_updated_at) VALUES ($1, $2, $3, $4)', [rec.uuid, 'delete', rec.project, at]);
+  await d.execute('INSERT INTO outbox (uuid, op, project, client_updated_at) VALUES ($1, $2, $3, $4)', [rec.uuid, 'delete', rec.project, at]);  changed();
 }
 
 /** Store a record coming from the server. Local unsent edits are kept unless `force` (server won the conflict). */
@@ -355,4 +358,66 @@ export async function wipe() {
   for (const t of ['records', 'outbox', 'files', 'forms', 'variables', 'projects', 'sync_log', 'kv']) {
     await d.execute(`DELETE FROM ${t}`);
   }
+}
+
+// ------------------------------------------------------------------ sync 2: purges, full-download reconciliation, conflict copies
+const IN = (n: number, from = 1) => Array.from({ length: n }, (_, i) => `$${i + from}`).join(',');
+
+/** Records removed for good on the server: forget them here too (unless an unsent change is waiting). */
+export async function purgeLocal(uuids: string[]): Promise<number> {
+  const d = await db();
+  let n = 0;
+  for (let i = 0; i < uuids.length; i += 400) {
+    const part = uuids.slice(i, i + 400);
+    const pend = new Set((await d.select<{ uuid: string }[]>(`SELECT DISTINCT uuid FROM outbox WHERE uuid IN (${IN(part.length)})`, part)).map((r) => r.uuid));
+    const gone = part.filter((u) => !pend.has(u));
+    if (!gone.length) continue;
+    const r = await d.execute(`DELETE FROM records WHERE uuid IN (${IN(gone.length)})`, gone);
+    await d.execute(`DELETE FROM files WHERE record IN (${IN(gone.length)}) AND state <> 'pending_upload'`, gone);
+    n += r.rowsAffected ?? 0;
+  }
+  return n;
+}
+
+/**
+ * After a full download: records still here that the server no longer sends (deleted, no longer visible, or the
+ * project changed hands) are removed. Never touches records with unsent changes or created on this computer.
+ */
+export async function reconcile(projects: string[], received: Set<string>): Promise<number> {
+  if (!projects.length) return 0;
+  const d = await db();
+  const rows = await d.select<{ uuid: string }[]>(
+    `SELECT uuid FROM records WHERE project IN (${IN(projects.length)}) AND dirty = 0 AND version > 0 AND uuid NOT IN (SELECT uuid FROM outbox)`, projects,
+  );
+  const stale = rows.map((r) => r.uuid).filter((u) => !received.has(u));
+  let n = 0;
+  for (let i = 0; i < stale.length; i += 400) {
+    const part = stale.slice(i, i + 400);
+    const r = await d.execute(`DELETE FROM records WHERE uuid IN (${IN(part.length)})`, part);
+    await d.execute(`DELETE FROM files WHERE record IN (${IN(part.length)}) AND state <> 'pending_upload'`, part);
+    n += r.rowsAffected ?? 0;
+  }
+  return n;
+}
+
+export async function listConflicts(): Promise<ConflictCopy[]> {
+  return j<ConflictCopy[]>(await kvGet('conflicts'), []);
+}
+export async function addConflict(c: ConflictCopy) {
+  const all = await listConflicts();
+  await kvSet('conflicts', JSON.stringify([c, ...all.filter((x) => x.uuid !== c.uuid)].slice(0, 200)));
+}
+export async function removeConflict(id: string) {
+  const all = await listConflicts();
+  await kvSet('conflicts', JSON.stringify(all.filter((x) => x.id !== id)));
+}
+/** Put this computer's version back: saved as a new edit, so it wins at the next sync. */
+export async function restoreConflict(c: ConflictCopy) {
+  const cur = await getRecord(c.uuid);
+  if (cur && c.op === 'upsert') {
+    await saveLocalRecord({ uuid: c.uuid, project: c.project, form: c.form, data: { ...cur.data, ...c.mine }, status: (cur.status === 'draft' ? 'draft' : 'complete'), isNew: false });
+  } else if (cur && c.op === 'delete') {
+    await deleteLocalRecord(cur);
+  }
+  await removeConflict(c.id);
 }

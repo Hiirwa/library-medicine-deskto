@@ -14,6 +14,7 @@ import { Icon, StatusChip, SyncChip } from './ui';
 import { useProjects } from './Shell';
 import { useSession } from '../providers/AppProvider';
 import { useUi, type EditorTarget } from '../providers/UiProvider';
+import { WebFormEditor } from './WebFormEditor';
 
 type Section = { title: string; description?: string; vars: Variable[] };
 
@@ -50,13 +51,17 @@ function resolveDefault(v: Variable): unknown {
 /** Loads what the editor needs for an editor target (record, project, variables, forms). */
 export function EditorHost() {
   const { editor, closeEditor } = useUi();
+  const { settings } = useSession();
   const projects = useProjects();
   const project = projects.data?.find((p) => p.uuid === editor?.project);
   const vars = useQuery({ queryKey: ['variables', editor?.project], queryFn: () => store.getVariables(editor!.project), enabled: !!editor });
   const forms = useQuery({ queryKey: ['forms', editor?.project], queryFn: () => store.listForms(editor!.project), enabled: !!editor });
   const rec = useQuery({ queryKey: ['record', editor?.record ?? editor?.copyOf ?? 'new'], queryFn: () => (editor?.record || editor?.copyOf ? store.getRecord((editor.record ?? editor.copyOf) as string) : Promise.resolve(null)), enabled: !!editor, gcTime: 0 });
   if (!editor || !project || !vars.data || !forms.data || rec.isLoading) return null;
-  return <RecordEditor key={`${editor.record ?? 'new'}-${editor.copyOf ?? ''}`} target={editor} project={project} variables={vars.data} forms={forms.data} source={rec.data ?? null} onClose={closeEditor} />;
+  const key = `${editor.record ?? 'new'}-${editor.copyOf ?? ''}`;
+  // "website": the website's own form (same look, logic and validation); "classic": the compact desktop editor
+  if (settings.formStyle !== 'classic') return <WebFormEditor key={key} target={editor} project={project} variables={vars.data} forms={forms.data} source={rec.data ?? null} onClose={closeEditor} />;
+  return <RecordEditor key={key} target={editor} project={project} variables={vars.data} forms={forms.data} source={rec.data ?? null} onClose={closeEditor} />;
 }
 
 interface Props { target: EditorTarget; project: Project; variables: Variable[]; forms: Form[]; source: LocalRecord | null; onClose: () => void }

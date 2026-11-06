@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as store from '../lib/db';
 import { native } from '../lib/native';
-import { syncNow, type SyncProgress, type SyncSummary } from '../lib/sync';
+import { checkRemote, DeviceRevokedError, syncNow, type SyncProgress, type SyncScope, type SyncSummary } from '../lib/sync';
 import type { Me } from '../lib/types';
 import { useNetwork } from '../hooks/useNetwork';
 import { DEFAULT_SERVER } from '../lib/config';
@@ -31,6 +31,12 @@ interface Session {
   dismissToast: (id: number) => void;
   settings: Settings;
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => Promise<void>;
+  /** live sync: 'live' = watching the website, 'paused' = offline/off, 'unsupported' = older server (timer only) */
+  live: 'live' | 'paused' | 'unsupported';
+  lastCheck: string | null;
+  /** set when the website disconnected this computer (Account → Devices) */
+  revoked: string | null;
+  retryConnection: () => Promise<void>;
 }
 
 export interface Settings {
@@ -40,8 +46,16 @@ export interface Settings {
   syncOnStart: boolean;
   /** download attachments for offline use during sync */
   downloadFiles: boolean;
+  /** watch the website every few seconds and send local changes straight away */
+  liveSync: boolean;
+  /** 'team': every record of projects where the role sees all data; 'own': only records I submitted */
+  syncScope: SyncScope;
+  /** seconds between two checks of the website while live sync is on */
+  liveEverySec: number;
+  /** record editor: 'website' = the website's own form, 'classic' = the compact desktop editor */
+  formStyle: 'website' | 'classic';
 }
-const DEFAULT_SETTINGS: Settings = { autoSyncMin: 5, syncOnStart: true, downloadFiles: true };
+const DEFAULT_SETTINGS: Settings = { autoSyncMin: 5, syncOnStart: true, downloadFiles: true, liveSync: true, syncScope: 'team', liveEverySec: 15, formStyle: 'website' };
 
 const Ctx = createContext<Session | null>(null);
 export const useSession = () => {
@@ -63,6 +77,9 @@ function Inner({ children }: { children: ReactNode }) {
   const net = useNetwork();
   const wasOnline = useRef<boolean | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [live, setLive] = useState<Session['live']>('paused');
+  const [lastCheck, setLastCheck] = useState<string | null>(null);
+  const [revoked, setRevoked] = useState<string | null>(null);
 
   const toast = useCallback((msg: string, kind: 'ok' | 'error' = 'ok') => {
     const id = Date.now() + Math.random();
@@ -90,36 +107,86 @@ function Inner({ children }: { children: ReactNode }) {
     setSyncing(true);
     setProgress({ stage: 'pushing', message: 'Starting sync…' });
     try {
-      const summary = await syncNow(setProgress, { downloadFiles: settings.downloadFiles });
+      const summary = await syncNow(setProgress, { downloadFiles: settings.downloadFiles, scope: settings.syncScope });
+      setRevoked(null);
       setLastResult({ ok: summary.rejected === 0, summary });
       setLastSync(new Date().toISOString());
-      if (!opts.quiet || summary.pushed || summary.pulled || summary.rejected) {
-        toast(summary.rejected ? `Synced, but ${summary.rejected} change${summary.rejected === 1 ? ' was' : 's were'} refused — see the marked records.` : `Synced: ${summary.pushed} sent, ${summary.pulled} received.`, summary.rejected ? 'error' : 'ok');
-      }
+      setLastCheck(new Date().toISOString());
+      if (summary.serverWins) toast(`${summary.serverWins} record${summary.serverWins === 1 ? ' was' : 's were'} changed more recently on the website. Your version is kept under Sync centre → Conflicts.`, 'error');
+      if (summary.rejected) toast(`Synced, but ${summary.rejected} change${summary.rejected === 1 ? ' was' : 's were'} refused — see the marked records.`, 'error');
+      else if (opts.quiet && !summary.pushed && summary.pulled) toast(`${summary.pulled} update${summary.pulled === 1 ? '' : 's'} arrived from ${new URL(server).host}.`);
+      else if (!opts.quiet || summary.pushed || summary.pulled || summary.purged) toast(`Synced: ${summary.pushed} sent, ${summary.pulled} received${summary.purged ? `, ${summary.purged} removed` : ''}.`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setLastResult({ ok: false, error: msg });
-      if (/401|token|authori/i.test(msg)) toast('Your API token was refused. Add a new token in Settings.', 'error');
+      if (e instanceof DeviceRevokedError) { setRevoked(msg); setLive('paused'); }
+      else if (/401|token|authori/i.test(msg)) toast('Your API token was refused. Add a new token in Settings.', 'error');
       else if (!opts.quiet) toast(`Sync failed: ${msg}. Your changes stay saved on this computer.`, 'error');
     } finally {
       setSyncing(false);
       setProgress(null);
       await queryClient.invalidateQueries();
     }
-  }, [syncing, toast, settings.downloadFiles]);
+  }, [syncing, toast, settings.downloadFiles, settings.syncScope, server]);
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  const syncingRef = useRef(syncing);
+  syncingRef.current = syncing;
 
   // back online → sync straight away; then every 5 minutes while online
   useEffect(() => {
     if (stage !== 'app') return;
-    if (net.online && wasOnline.current === false && settings.syncOnStart) sync({ quiet: true });
-    if (net.online && wasOnline.current === null && settings.syncOnStart) sync({ quiet: true });
+    if (net.online && wasOnline.current === false && settings.syncOnStart) syncRef.current({ quiet: true });
+    if (net.online && wasOnline.current === null && settings.syncOnStart) syncRef.current({ quiet: true });
     wasOnline.current = net.online;
-  }, [net.online, stage, sync, settings.syncOnStart]);
+  }, [net.online, stage, settings.syncOnStart]);
   useEffect(() => {
-    if (stage !== 'app' || !settings.autoSyncMin) return;
-    const t = setInterval(() => { if (net.online) sync({ quiet: true }); }, settings.autoSyncMin * 60 * 1000);
+    if (stage !== 'app' || !settings.autoSyncMin || revoked) return;
+    const t = setInterval(() => { if (net.online) syncRef.current({ quiet: true }); }, settings.autoSyncMin * 60 * 1000);
     return () => clearInterval(t);
-  }, [net.online, stage, sync, settings.autoSyncMin]);
+  }, [net.online, stage, settings.autoSyncMin, revoked]);
+
+  // live sync, part 1: ask the website every few seconds whether anything changed (one tiny request), sync when it did
+  useEffect(() => {
+    if (stage !== 'app' || !settings.liveSync || !net.online || revoked) { setLive((l) => (l === 'unsupported' ? l : 'paused')); return; }
+    let stop = false;
+    let busy = false;
+    setLive((l) => (l === 'unsupported' ? l : 'live'));
+    const check = async () => {
+      if (stop || busy || syncingRef.current || document.hidden) return;
+      busy = true;
+      try {
+        const r = await checkRemote(settings.syncScope);
+        setLastCheck(new Date().toISOString());
+        if (r === 'unsupported') { setLive('unsupported'); stop = true; return; }
+        if (r === 'changed') await syncRef.current({ quiet: true });
+      } catch (e) {
+        if (e instanceof DeviceRevokedError) { setRevoked(e.message); stop = true; }
+      } finally { busy = false; }
+    };
+    const t = setInterval(check, Math.max(5, settings.liveEverySec) * 1000);
+    const onFocus = () => check();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => { stop = true; clearInterval(t); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus); };
+  }, [stage, settings.liveSync, settings.liveEverySec, settings.syncScope, net.online, revoked]);
+
+  // live sync, part 2: what is saved on this computer is sent a few seconds later (several quick saves → one sync)
+  useEffect(() => {
+    if (stage !== 'app' || !settings.liveSync || revoked) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const onChange = () => {
+      clearTimeout(t);
+      t = setTimeout(() => { if (net.online) syncRef.current({ quiet: true }); }, 3000);
+    };
+    window.addEventListener('lm-local-change', onChange);
+    return () => { clearTimeout(t); window.removeEventListener('lm-local-change', onChange); };
+  }, [stage, settings.liveSync, net.online, revoked]);
+
+  const retryConnection = useCallback(async () => {
+    setRevoked(null);
+    await syncRef.current();
+  }, []);
 
   const setSetting = useCallback(async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((cur) => {
@@ -153,8 +220,8 @@ function Inner({ children }: { children: ReactNode }) {
     await queryClient.invalidateQueries();
   }, [settings]);
 
-  const value = useMemo<Session>(() => ({ stage, server, user, online: net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting }),
-    [stage, server, user, net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting]);
+  const value = useMemo<Session>(() => ({ stage, server, user, online: net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting, live, lastCheck, revoked, retryConnection }),
+    [stage, server, user, net.online, syncing, progress, lastSync, lastResult, setLoggedIn, setTokenSaved, sync, signOut, toast, toasts, dismissToast, settings, setSetting, live, lastCheck, revoked, retryConnection]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAsk } from '../components/Confirm';
 import { CardTitle, Empty, Icon, PageHead, Stat } from '../components/ui';
 import * as store from '../lib/db';
@@ -6,17 +7,27 @@ import { ago, shortDate } from '../lib/time';
 import { plural } from '../lib/format';
 import { useSession } from '../providers/AppProvider';
 import { useUi } from '../providers/UiProvider';
+import type { ConflictCopy, Variable } from '../lib/types';
+
+const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
 /** Everything about synchronisation in one place: what waits, what was refused, what happened. */
 export function SyncView() {
   const ask = useAsk();
-  const { online, sync, syncing, lastSync, lastResult, server, toast, settings } = useSession();
+  const { online, sync, syncing, lastSync, lastResult, server, toast, settings, live, lastCheck, revoked, retryConnection } = useSession();
   const { openEditor, go } = useUi();
   const qc = useQueryClient();
   const pending = useQuery({ queryKey: ['pendingList'], queryFn: store.pendingChanges });
   const refused = useQuery({ queryKey: ['refused'], queryFn: store.refusedRecords });
   const log = useQuery({ queryKey: ['synclogFull'], queryFn: () => store.syncLog(60) });
   const fstats = useQuery({ queryKey: ['fstats'], queryFn: store.fileStats });
+  const conflicts = useQuery({ queryKey: ['conflicts'], queryFn: store.listConflicts });
+  const device = useQuery({ queryKey: ['deviceName'], queryFn: async () => (await store.kvGet('device_name')) ?? '' });
+  const restore = useMutation({
+    mutationFn: store.restoreConflict,
+    onSuccess: async () => { await qc.invalidateQueries(); toast('Your version is back and will be sent at the next sync.'); },
+  });
+  const keepServer = useMutation({ mutationFn: (c: ConflictCopy) => store.removeConflict(c.id), onSuccess: () => qc.invalidateQueries() });
 
   const discard = useMutation({
     mutationFn: store.discardChange,
@@ -43,8 +54,41 @@ export function SyncView() {
         <Stat icon="send" value={p.length} label="Records to send" tone="k-warn" />
         <Stat icon="exclamation-octagon" value={refused.data?.length ?? 0} label="Refused by server" tone="k-danger" />
         <Stat icon="cloud-upload" value={fstats.data?.waiting ?? 0} label="Files to upload" tone="k-teal" />
-        <Stat icon="stopwatch" value={settings.autoSyncMin ? `${settings.autoSyncMin} min` : 'Off'} label="Auto-sync" onClick={() => go({ page: 'settings' })} title="Change in Settings" />
+        <Stat icon="intersect" value={conflicts.data?.length ?? 0} label="Conflicts" tone="k-violet" />
+        <Stat icon="stopwatch" value={settings.autoSyncMin ? `${settings.autoSyncMin} min` : 'Off'} label="Auto-sync" tone="k-pink" onClick={() => go({ page: 'settings' })} title="Change in Settings" />
       </div>
+
+      <section className="card p-5 anim-in">
+        {(() => {
+          const state = revoked ? 'cut' : !online || !settings.liveSync ? 'paused' : live === 'unsupported' ? 'unsupported' : 'on';
+          const head = { cut: 'Disconnected on the website', paused: !online ? 'Live sync waits for the internet' : 'Live sync is off', unsupported: 'Live sync needs the latest website update', on: 'Live with the website' }[state];
+          const sub = {
+            cut: revoked,
+            paused: !online ? 'Everything you save is kept here and sent as soon as the connection is back.' : 'Changes are exchanged on the automatic sync timer only. Turn live sync on in Settings.',
+            unsupported: 'This server does not offer live updates yet; the app syncs on the timer instead.',
+            on: `Website changes arrive within about ${settings.liveEverySec} seconds; what you save here is sent a few seconds later.`,
+          }[state];
+          return (
+            <div className="live-card">
+              <span className={`live-orb ${state}`}><Icon name={state === 'cut' ? 'plug' : state === 'on' ? 'broadcast' : state === 'unsupported' ? 'stopwatch' : 'pause-fill'} /></span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold ink">{head}</h2>
+                <div className="muted text-sm">{sub}</div>
+                <div className="live-facts">
+                  <span><Icon name="pc-display" /> This computer: <b>{device.data || 'unnamed'}</b></span>
+                  <span><Icon name="diagram-3" /> Keeps <b>{settings.syncScope === 'team' ? 'team records' : 'my records only'}</b></span>
+                  <span><Icon name="broadcast" /> Website checked <b>{ago(lastCheck)}</b></span>
+                </div>
+              </div>
+              <span className="flex flex-wrap justify-end gap-2">
+                {revoked && <button className="btn btn-sm btn-primary" disabled={syncing} onClick={() => retryConnection()}><Icon name="arrow-clockwise" />Try again</button>}
+                <button className="btn btn-sm" onClick={() => openUrl(`${server}/account#devices`)}><Icon name="box-arrow-up-right" />Devices on website</button>
+                <button className="btn btn-sm" onClick={() => go({ page: 'settings' })}><Icon name="sliders" />Settings</button>
+              </span>
+            </div>
+          );
+        })()}
+      </section>
 
       <section className="card p-5 anim-in">
         <CardTitle icon="hourglass-split" tone="k-warn" title="Waiting to send" sub="Changes made on this computer that the server has not received yet" />
@@ -88,6 +132,15 @@ export function SyncView() {
         </section>
       )}
 
+      {!!conflicts.data?.length && (
+        <section className="card p-5 anim-in">
+          <CardTitle icon="intersect" tone="k-violet" title="Conflicts" sub="These records were changed on the website after you changed them here. The newer website version was kept; your version is saved below." />
+          <div className="mt-4 space-y-3">
+            {conflicts.data.map((c) => <ConflictItem key={c.id} c={c} onRestore={() => restore.mutate(c)} onKeep={() => keepServer.mutate(c)} onOpen={() => openEditor({ project: c.project, record: c.uuid, form: c.form })} />)}
+          </div>
+        </section>
+      )}
+
       <section className="card p-5 anim-in">
         <CardTitle icon="clock-history" title="Sync history" sub={`${plural(log.data?.length ?? 0, 'sync')} kept on this computer`} />
         <div className="mt-4 space-y-1">
@@ -101,6 +154,33 @@ export function SyncView() {
           {log.data && !log.data.length && <p className="muted py-4 text-center text-sm">No sync yet.</p>}
         </div>
       </section>
+    </div>
+  );
+}
+
+function ConflictItem({ c, onRestore, onKeep, onOpen }: { c: ConflictCopy; onRestore: () => void; onKeep: () => void; onOpen: () => void }) {
+  const vars = useQuery({ queryKey: ['vars', c.project], queryFn: () => store.getVariables(c.project) });
+  const label = new Map((vars.data ?? []).map((v: Variable) => [v.name, v.label || v.name]));
+  const keys = [...new Set([...Object.keys(c.mine), ...Object.keys(c.theirs)])].filter((k) => !k.startsWith('_'));
+  const diff = new Set(keys.filter((k) => JSON.stringify(c.mine[k] ?? null) !== JSON.stringify(c.theirs[k] ?? null)));
+  const order = [...keys].sort((a, b) => Number(diff.has(b)) - Number(diff.has(a)));
+  return (
+    <div className="cf-item">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="idchip">{c.uuid.slice(0, 8)}</span>
+        <span className="chip chip-warn"><Icon name="exclamation-diamond" />{c.op === 'delete' ? 'You deleted it, the website kept editing it' : `${diff.size} field${diff.size === 1 ? '' : 's'} differ`}</span>
+        <span className="muted text-sm">{shortDate(c.at)}</span>
+        <span className="flex-1" />
+        <button className="btn btn-sm" onClick={onOpen}><Icon name="eye" />Open</button>
+        <button className="btn btn-sm btn-primary" onClick={onRestore}><Icon name="arrow-counterclockwise" />{c.op === 'delete' ? 'Delete it again' : 'Use my version'}</button>
+        <button className="btn btn-sm btn-ghost" onClick={onKeep}><Icon name="check2" />Keep website version</button>
+      </div>
+      {c.op === 'upsert' && (
+        <div className="cf-cols">
+          <div className="cf-col mine"><h4>My version · {shortDate(c.mine_at)}</h4>{order.map((k) => <div key={k} className={`cf-row ${diff.has(k) ? 'diff' : ''}`}><span className="k" title={k}>{label.get(k) ?? k}</span><span>{show(c.mine[k])}</span></div>)}</div>
+          <div className="cf-col theirs"><h4>Website version · {shortDate(c.theirs_at)}</h4>{order.map((k) => <div key={k} className={`cf-row ${diff.has(k) ? 'diff' : ''}`}><span className="k" title={k}>{label.get(k) ?? k}</span><span>{show(c.theirs[k])}</span></div>)}</div>
+        </div>
+      )}
     </div>
   );
 }

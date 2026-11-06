@@ -26,8 +26,8 @@ export const native = {
   workspaceSize: () => invoke<number>('workspace_size'),
   networkStatus: () => invoke<NetworkStatus>('network_status'),
   checkNetwork: () => invoke<NetworkStatus>('check_network_now'),
-  download: (uuid: string, project: string, name: string, sha256: string | null) =>
-    invoke<string>('download_attachment', { uuid, project, name, sha256 }),
+  download: (uuid: string, project: string, name: string, sha256: string | null, scope?: 'team' | 'own') =>
+    invoke<string>('download_attachment', { uuid, project, name, sha256, scope: scope ?? null }),
   upload: (path: string, uuid: string, project: string, variable: string, sha256: string) =>
     invoke<ApiResponse<{ ok?: boolean; error?: string; already_received?: boolean }>>('upload_attachment', { path, uuid, project, variable, sha256 }),
 };

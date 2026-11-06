@@ -27,6 +27,9 @@ interface Ui {
   closeEditor: () => void;
   palette: boolean;
   setPalette: (open: boolean) => void;
+  /** colourful look: colour-coded menu, gradient tiles and headers (on by default) */
+  vivid: boolean;
+  setVivid: (on: boolean) => void;
 }
 
 const Ctx = createContext<Ui | null>(null);
@@ -52,6 +55,9 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(() => ls.get('lm_sidebar') === '1');
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [palette, setPalette] = useState(false);
+  const [vivid, setVividState] = useState(() => ls.get('lm_vivid') !== '0');
+  useEffect(() => { document.documentElement.setAttribute('data-vivid', vivid ? '1' : '0'); }, [vivid]);
+  const setVivid = useCallback((on: boolean) => { setVividState(on); ls.set('lm_vivid', on ? '1' : '0'); }, []);
 
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
@@ -84,7 +90,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Ui>(() => ({
     route, go, back, currentProject, theme, dark, setTheme, collapsed, toggleSidebar,
-    editor, openEditor: setEditor, closeEditor: () => setEditor(null), palette, setPalette,
-  }), [route, go, back, currentProject, theme, dark, setTheme, collapsed, toggleSidebar, editor, palette]);
+    editor, openEditor: setEditor, closeEditor: () => setEditor(null), palette, setPalette, vivid, setVivid,
+  }), [route, go, back, currentProject, theme, dark, setTheme, collapsed, toggleSidebar, editor, palette, vivid, setVivid]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

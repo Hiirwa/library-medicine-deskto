@@ -95,6 +95,20 @@ export interface SyncResponse {
   has_more: boolean;
   cursor: Record<string, unknown> | null;
   user: { id: string; name: string; email: string };
+  /** sync 2 servers: records removed for good since the last sync */
+  purged?: string[];
+  /** sync 2 servers: what this device syncs; a different key means "download everything again" */
+  scope?: { mode: 'team' | 'own'; key: string };
+  /** sync 2 servers: compared with GET /api/v1/sync/status to notice website changes within seconds */
+  fingerprint?: string | null;
+}
+
+export interface SyncStatus { server_time: string; fingerprint: string; scope: { mode: 'team' | 'own'; key: string }; projects: number }
+
+/** A change of this computer that lost against a newer one on the server; kept so it can be restored. */
+export interface ConflictCopy {
+  id: string; uuid: string; project: string; form: string | null; at: string;
+  mine: RecordData; mine_at: string | null; theirs: RecordData; theirs_at: string | null; op: 'upsert' | 'delete';
 }
 
 export interface Me {
