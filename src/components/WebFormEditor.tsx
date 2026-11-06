@@ -11,6 +11,7 @@ import { native } from '../lib/native';
 import { shortDate, uuid as newId } from '../lib/time';
 import type { Form, LocalRecord, Project, RecordData, Variable } from '../lib/types';
 import { Icon, StatusChip, SyncChip } from './ui';
+import { FormPicker } from './FormPicker';
 import { useSession } from '../providers/AppProvider';
 import { useUi, type EditorTarget } from '../providers/UiProvider';
 
@@ -35,7 +36,7 @@ export function WebFormEditor({ target, project, variables, forms, source, onClo
   const ask = useAsk();
   const qc = useQueryClient();
   const { toast } = useSession();
-  const { dark, openEditor } = useUi();
+  const { dark, vivid, openEditor } = useUi();
   const record = target.record ? source : null;
   const isNew = record === null;
   const [id] = useState(() => record?.uuid ?? newId());
@@ -166,10 +167,7 @@ export function WebFormEditor({ target, project, variables, forms, source, onClo
             <p className="muted truncate text-sm selectable">{project.title} · ID {id.slice(0, 8)}{record ? ` · last change ${shortDate(record.updated_at)}` : ''}</p>
           </div>
           {(forms.length > 1 || canAll) && (
-            <select className="field w-56" value={formId} onChange={(e) => chooseForm(e.target.value)} aria-label="Form">
-              {canAll && <option value={ALL}>All variables</option>}
-              {forms.map((f) => <option key={f.uuid} value={f.uuid}>{f.title}</option>)}
-            </select>
+            <FormPicker forms={forms} variables={variables} value={formId} canAll={canAll} onChange={chooseForm} />
           )}
           {touched && !readOnly && <span className="chip chip-warn" title="You have changes that are not saved yet"><Icon name="pencil" />Unsaved</span>}
           {record && <span className="flex gap-1.5"><StatusChip status={record.status} /><SyncChip dirty={record.dirty} error={record.sync_error} /></span>}
@@ -194,7 +192,7 @@ export function WebFormEditor({ target, project, variables, forms, source, onClo
           ref={frame}
           className="wf-frame"
           title={title}
-          src={`${import.meta.env.BASE_URL}webform/form.html?theme=${dark ? 'dark' : 'light'}`}
+          src={`${import.meta.env.BASE_URL}webform/form.html?theme=${dark ? 'dark' : 'light'}&vivid=${vivid ? '1' : '0'}`}
           onLoad={() => setReady(true)}
         />
       </div>
