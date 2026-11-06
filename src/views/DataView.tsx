@@ -106,16 +106,6 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
   const view = rows.slice(page * PAGE, page * PAGE + PAGE);
   const canAdd = project.can.add && project.status === 'active';
 
-  async function exportCsv(withLabels: boolean, onlyShown: boolean) {
-    try {
-      const data = onlyShown ? rows : all.data ?? [];
-      const path = await saveCsv(`${project.title} - records`, recordsTable(data, vars, { labels: withLabels, hidePii }));
-      if (path) toast(`Exported ${plural(data.length, 'record')} to ${path}`);
-    } catch (e) {
-      toast(`Export failed: ${String(e)}`, 'error');
-    }
-  }
-
   const toggleOne = (id: string) => setSelected((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const pageAll = view.length > 0 && view.every((r) => selected.has(r.uuid));
   const picked = (all.data ?? []).filter((r) => selected.has(r.uuid));
@@ -147,15 +137,11 @@ export function DataView({ project, vars, forms }: ProjectCtx) {
           </Dropdown>
         ) : <button className="btn btn-primary" onClick={() => openEditor({ project: project.uuid, record: null, form: null })} title="New record (Ctrl+N)"><Icon name="plus-lg" />New record</button>)}
         {canAdd && <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'import' })}><Icon name="cloud-upload" />Import</button>}
-        {checkAccess('export', project).ok && (<Dropdown button={(_o, t) => <button className="btn" onClick={t}><Icon name="box-arrow-down" />Export<Icon name="chevron-down" /></button>} width="18rem">
-          {(close) => (<>
-            <div className="mh">CSV for Excel, SPSS, R, Stata</div>
-            <button onClick={() => { close(); exportCsv(true, false); }}><Icon name="filetype-csv" />All records · labels</button>
-            <button onClick={() => { close(); exportCsv(false, false); }}><Icon name="123" />All records · codes</button>
-            <hr />
-            <button disabled={!rows.length} onClick={() => { close(); exportCsv(labels, true); }}><Icon name="funnel" />Only the {plural(rows.length, 'record')} shown</button>
-          </>)}
-        </Dropdown>)}
+        {checkAccess('export', project).ok && (
+          <button className="btn" onClick={() => go({ page: 'project', project: project.uuid, tab: 'export' })} title="Open Export: choose the format, records and columns">
+            <Icon name="box-arrow-down" />Export
+          </button>
+        )}
       </PageHead>
 
       {project.status !== 'active' && <div className="notice warn"><Icon name="archive" /><span>This project is archived: records are read-only.</span></div>}
